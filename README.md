@@ -1,3 +1,12 @@
+# USEFULL
+Add these lines to the .bashrc to use the PX4 models also in other Gazebo world not present in PX4.
+
+```sh
+export PX4_GZ_MODELS=pathTo/PX4-Autopilot/Tools/simulation/gz/models
+export PX4_GZ_WORLDS=pathTo/PX4-Autopilot/Tools/simulation/gz/worlds
+export GZ_SIM_RESOURCE_PATH=$GZ_SIM_RESOURCE_PATH:$PX4_GZ_MODELS:$PX4_GZ_WORLDS
+```
+
 # PX4 Drone Autopilot
 
 [![Releases](https://img.shields.io/github/release/PX4/PX4-Autopilot.svg)](https://github.com/PX4/PX4-Autopilot/releases) [![DOI](https://zenodo.org/badge/22634/PX4/PX4-Autopilot.svg)](https://zenodo.org/badge/latestdoi/22634/PX4/PX4-Autopilot)
@@ -114,7 +123,7 @@ These boards are maintained to be compatible with PX4-Autopilot by the Manufactu
 
 ### Community supported
 
-These boards don't fully comply industry standards, and thus is solely maintained by the PX4 public community members.
+These boards don't fully comply industry standards, and thus is solely maintained by the PX4 publc community members.
 
 ### Experimental
 
