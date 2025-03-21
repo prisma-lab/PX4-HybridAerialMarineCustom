@@ -81,6 +81,7 @@ px4_add_romfs_files(
 	4006_gz_px4vision
 	4008_gz_advanced_plane
 	4009_gz_x500_floating
+	4010_gz_USV_test
 	
 	6001_gz_PLACE_mockup
 	6011_gazebo-classic_typhoon_h480
