@@ -11,14 +11,14 @@
       <self_collide>false</self_collide>
       <velocity_decay/>
       <inertial>
-        <mass>1.0</mass>
+        <mass>4.0</mass>
         <inertia>
-          <ixx>0.02166666666666667</ixx>
+          <ixx>0.0633333333333333</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>0.02166666666666667</iyy>
+          <iyy>0.0633333333333333</iyy>
           <iyz>0</iyz>
-          <izz>0.04000000000000001</izz>
+          <izz>0.125</izz>
         </inertia>
       </inertial>
       <collision name='collision_base_link'>
@@ -214,14 +214,14 @@
       <gravity>true</gravity>
       <velocity_decay/>
       <inertial>
-        <mass>0.5</mass>
+        <mass>8</mass>
         <inertia>
-          <ixx>0.01166666666666667</ixx>
+          <ixx>0.678</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>0.01166666666666667</iyy>
+          <iyy>0.678</iyy>
           <iyz>0</iyz>
-          <izz>0.02000000000000001</izz>
+          <izz>0.0225</izz>
         </inertia>
       </inertial>
       <collision name='collision_lf'>
@@ -251,14 +251,14 @@
       <gravity>true</gravity>
       <velocity_decay/>
       <inertial>
-        <mass>0.5</mass>
+        <mass>8</mass>
         <inertia>
-          <ixx>0.01166666666666667</ixx>
+          <ixx>0.678</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>0.01166666666666667</iyy>
+          <iyy>0.678</iyy>
           <iyz>0</iyz>
-          <izz>0.02000000000000001</izz>
+          <izz>0.0225</izz>
         </inertia>
       </inertial>
       <collision name='collision_rf'>
@@ -410,11 +410,11 @@
       <velocity_decay/>
       <pose>0.318 -0.318 0.345 0 0 0</pose>
       <inertial>
-        <mass>0.016076923076923075</mass>
+        <mass>0.0016076923076923075</mass>
         <inertia>
-          <ixx>3.8464910483993325e-07</ixx>
-          <iyy>2.6115851691700804e-05</iyy>
-          <izz>2.649858234714004e-05</izz>
+          <ixx>3.8464910483993325e-08</ixx>
+          <iyy>2.6115851691700804e-06</iyy>
+          <izz>2.649858234714004e-06</izz>
         </inertia>
       </inertial>
       <visual name='visula_left_rh'>
@@ -460,23 +460,25 @@
       filename="gz-sim-thruster-system"
       name="gz::sim::systems::Thruster">
       <joint_name>left_th_joint</joint_name>
-      <thrust_coefficient>0.004422</thrust_coefficient>
+      <thrust_coefficient>0.005422</thrust_coefficient>
       <fluid_density>1000</fluid_density>
-      <propeller_diameter>0.2</propeller_diameter>
+      <propeller_diameter>0.3</propeller_diameter>
       <velocity_control>false</velocity_control>
-      <max_thrust_cmd>10</max_thrust_cmd>
-      <topic>thrusters/USV_test_left/thrust</topic>
+      <max_thrust_cmd>2300</max_thrust_cmd>
+      <namespace>model</namespace>
+      <topic>USV_test_0/servo_0</topic> 
     </plugin>
     <plugin
       filename="gz-sim-thruster-system"
       name="gz::sim::systems::Thruster">
       <joint_name>right_th_joint</joint_name>
-      <thrust_coefficient>0.004422</thrust_coefficient>
+      <thrust_coefficient>0.005422</thrust_coefficient>
       <fluid_density>1000</fluid_density>
-      <propeller_diameter>0.2</propeller_diameter>
+      <propeller_diameter>0.3</propeller_diameter>
       <velocity_control>false</velocity_control>
-      <max_thrust_cmd>10</max_thrust_cmd>
-      <topic>thrusters/USV_test_right/thrust</topic>
+      <max_thrust_cmd>2300</max_thrust_cmd>
+      <namespace>model</namespace>
+      <topic>USV_test_0/servo_1</topic> 
     </plugin>
 
     <!--Propeller-->
@@ -707,295 +709,6 @@
         </dynamics>
       </axis>
     </joint>
-
-    <!-- <link name="rotor_0">
-      <gravity>true</gravity>
-      <self_collide>false</self_collide>
-      <velocity_decay/>
-      <pose>0.318 -0.318 0.345 0 0 0</pose>
-      <inertial>
-          <mass>0.016076923076923075</mass>
-          <inertia>
-            <ixx>3.8464910483993325e-07</ixx>
-            <iyy>2.6115851691700804e-05</iyy>
-            <izz>2.649858234714004e-05</izz>
-          </inertia>
-        </inertial>
-      <visual name="rotor_0_visual">
-        <pose>-0.022 -0.14638461538461536 -0.016 0 0 0</pose>
-        <geometry>
-          <mesh>
-            <scale>0.8461538461538461 0.8461538461538461 0.8461538461538461</scale>
-            <uri>model://x500/meshes/1345_prop_ccw.stl</uri>
-          </mesh>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-        </material>
-      </visual>
-      <visual name="rotor_0_visual_motor_bell">
-        <pose>0 0 -.032 0 0 0</pose>
-        <geometry>
-          <mesh>
-            <scale>1 1 1</scale>
-            <uri>model://x500/meshes/5010Bell.dae</uri>
-          </mesh>
-        </geometry>
-      </visual>
-      <collision name="rotor_0_collision">
-        <pose>0 0 0 0 0 0 </pose>
-        <geometry>
-          <box>
-            <size>0.2792307692307692 0.016923076923076923 0.0008461538461538462</size>
-          </box>
-        </geometry>
-        <surface>
-          <contact>
-            <ode>
-              <min_depth>0.001</min_depth>
-              <max_vel>0</max_vel>
-            </ode>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
-      </collision>
-    </link>
-    <joint name="rotor_0_joint" type="revolute">
-      <parent>base_link</parent>
-      <child>rotor_0</child>
-      <axis>
-        <xyz>0 0 1</xyz>
-        <limit>
-          <lower>-1e+16</lower>
-          <upper>1e+16</upper>
-        </limit>
-        <dynamics>
-          <spring_reference>0</spring_reference>
-          <spring_stiffness>0</spring_stiffness>
-        </dynamics>
-      </axis>
-    </joint>
-    <link name="rotor_1">
-      <gravity>true</gravity>
-      <self_collide>false</self_collide>
-      <velocity_decay/>
-      <pose>-0.318 0.318 0.345 0 0 0</pose>
-      <inertial>
-          <mass>0.016076923076923075</mass>
-          <inertia>
-            <ixx>3.8464910483993325e-07</ixx>
-            <iyy>2.6115851691700804e-05</iyy>
-            <izz>2.649858234714004e-05</izz>
-          </inertia>
-        </inertial>
-      <visual name="rotor_1_visual">
-        <pose>-0.022 -0.14638461538461536 -0.016 0 0 0</pose>
-        <geometry>
-          <mesh>
-            <scale>0.8461538461538461 0.8461538461538461 0.8461538461538461</scale>
-            <uri>model://x500/meshes/1345_prop_ccw.stl</uri>
-          </mesh>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-        </material>
-      </visual>
-      <visual name="rotor_1_visual_motor_top">
-        <pose>0 0 -.032 0 0 0</pose>
-        <geometry>
-          <mesh>
-            <scale>1 1 1</scale>
-            <uri>model://x500/meshes/5010Bell.dae</uri>
-          </mesh>
-        </geometry>
-      </visual>
-      <collision name="rotor_1_collision">
-        <pose>0 0 0 0 0 0 </pose>
-        <geometry>
-          <box>
-            <size>0.2792307692307692 0.016923076923076923 0.0008461538461538462</size>
-          </box>
-        </geometry>
-        <surface>
-          <contact>
-            <ode>
-              <min_depth>0.001</min_depth>
-              <max_vel>0</max_vel>
-            </ode>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
-      </collision>
-    </link>
-    <joint name="rotor_1_joint" type="revolute">
-      <parent>base_link</parent>
-      <child>rotor_1</child>
-      <axis>
-        <xyz>0 0 1</xyz>
-        <limit>
-          <lower>-1e+16</lower>
-          <upper>1e+16</upper>
-        </limit>
-        <dynamics>
-          <spring_reference>0</spring_reference>
-          <spring_stiffness>0</spring_stiffness>
-        </dynamics>
-      </axis>
-    </joint>
-    <link name="rotor_2">
-      <gravity>true</gravity>
-      <self_collide>false</self_collide>
-      <velocity_decay/>
-      <pose>0.318 0.318 0.345 0 0 0</pose>
-      <inertial>
-          <mass>0.016076923076923075</mass>
-          <inertia>
-            <ixx>3.8464910483993325e-07</ixx>
-            <iyy>2.6115851691700804e-05</iyy>
-            <izz>2.649858234714004e-05</izz>
-          </inertia>
-        </inertial>
-      <visual name="rotor_2_visual">
-        <pose>-0.022 -0.14638461538461536 -0.016 0 0 0</pose>
-        <geometry>
-          <mesh>
-            <scale>0.8461538461538461 0.8461538461538461 0.8461538461538461</scale>
-            <uri>model://x500/meshes/1345_prop_cw.stl</uri>
-          </mesh>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-        </material>
-      </visual>
-      <visual name="rotor_2_visual_motor_top">
-        <pose>0 0 -.032 0 0 0</pose>
-        <geometry>
-          <mesh>
-            <scale>1 1 1</scale>
-            <uri>model://x500/meshes/5010Bell.dae</uri>
-          </mesh>
-        </geometry>
-      </visual>
-      <collision name="rotor_2_collision">
-        <pose>0 0 0 0 0 0 </pose>
-        <geometry>
-          <box>
-            <size>0.2792307692307692 0.016923076923076923 0.0008461538461538462</size>
-          </box>
-        </geometry>
-        <surface>
-          <contact>
-            <ode>
-              <min_depth>0.001</min_depth>
-              <max_vel>0</max_vel>
-            </ode>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
-      </collision>
-    </link>
-    <joint name="rotor_2_joint" type="revolute">
-      <parent>base_link</parent>
-      <child>rotor_2</child>
-      <axis>
-        <xyz>0 0 1</xyz>
-        <limit>
-          <lower>-1e+16</lower>
-          <upper>1e+16</upper>
-        </limit>
-        <dynamics>
-          <spring_reference>0</spring_reference>
-          <spring_stiffness>0</spring_stiffness>
-        </dynamics>
-      </axis>
-    </joint>
-    <link name="rotor_3">
-      <gravity>true</gravity>
-      <self_collide>false</self_collide>
-      <velocity_decay/>
-      <pose>-0.318 -0.318 0.345 0 0 0</pose>
-      <inertial>
-          <mass>0.016076923076923075</mass>
-          <inertia>
-            <ixx>3.8464910483993325e-07</ixx>
-            <iyy>2.6115851691700804e-05</iyy>
-            <izz>2.649858234714004e-05</izz>
-          </inertia>
-        </inertial>
-      <visual name="rotor_3_visual">
-        <pose>-0.022 -0.14638461538461536 -0.016 0 0 0</pose>
-        <geometry>
-          <mesh>
-            <scale>0.8461538461538461 0.8461538461538461 0.8461538461538461</scale>
-            <uri>model://x500/meshes/1345_prop_cw.stl</uri>
-          </mesh>
-        </geometry>
-        <material>
-          <script>
-            <name>Gazebo/DarkGrey</name>
-            <uri>file://media/materials/scripts/gazebo.material</uri>
-          </script>
-        </material>
-      </visual>
-      <visual name="rotor_3_visual_motor_top">
-        <pose>0 0 -.032 0 0 0</pose>
-        <geometry>
-          <mesh>
-            <scale>1 1 1</scale>
-            <uri>model://x500/meshes/5010Bell.dae</uri>
-          </mesh>
-        </geometry>
-      </visual>
-      <collision name="rotor_3_collision">
-        <pose>0 0 0 0 0 0 </pose>
-        <geometry>
-          <box>
-            <size>0.2792307692307692 0.016923076923076923 0.0008461538461538462</size>
-          </box>
-        </geometry>
-        <surface>
-          <contact>
-            <ode>
-              <min_depth>0.001</min_depth>
-              <max_vel>0</max_vel>
-            </ode>
-          </contact>
-          <friction>
-            <ode/>
-          </friction>
-        </surface>
-      </collision>
-    </link>
-    <joint name="rotor_3_joint" type="revolute">
-      <parent>base_link</parent>
-      <child>rotor_3</child>
-      <axis>
-        <xyz>0 0 1</xyz>
-        <limit>
-          <lower>-1e+16</lower>
-          <upper>1e+16</upper>
-        </limit>
-        <dynamics>
-          <spring_reference>0</spring_reference>
-          <spring_stiffness>0</spring_stiffness>
-        </dynamics>
-      </axis>
-    </joint> -->
     
     <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
       <jointName>rotor_0_joint</jointName>
@@ -1003,9 +716,9 @@
       <turningDirection>ccw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1000.0</maxRotVelocity>
+      <maxRotVelocity>3500.0</maxRotVelocity>
       <motorConstant>8.54858e-06</motorConstant>
-      <momentConstant>0.016</momentConstant>
+      <momentConstant>0.650</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>0</motorNumber>
       <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
@@ -1019,9 +732,9 @@
       <turningDirection>ccw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1000.0</maxRotVelocity>
+      <maxRotVelocity>3500.0</maxRotVelocity>
       <motorConstant>8.54858e-06</motorConstant>
-      <momentConstant>0.016</momentConstant>
+      <momentConstant>0.650</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>1</motorNumber>
       <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
@@ -1035,9 +748,9 @@
       <turningDirection>cw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1000.0</maxRotVelocity>
+      <maxRotVelocity>3500.0</maxRotVelocity>
       <motorConstant>8.54858e-06</motorConstant>
-      <momentConstant>0.016</momentConstant>
+      <momentConstant>0.650</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>2</motorNumber>
       <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
@@ -1051,9 +764,9 @@
       <turningDirection>cw</turningDirection>
       <timeConstantUp>0.0125</timeConstantUp>
       <timeConstantDown>0.025</timeConstantDown>
-      <maxRotVelocity>1000.0</maxRotVelocity>
+      <maxRotVelocity>3500.0</maxRotVelocity>
       <motorConstant>8.54858e-06</motorConstant>
-      <momentConstant>0.016</momentConstant>
+      <momentConstant>0.650</momentConstant>
       <commandSubTopic>command/motor_speed</commandSubTopic>
       <motorNumber>3</motorNumber>
       <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
@@ -1061,6 +774,91 @@
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
       <motorType>velocity</motorType>
     </plugin>
+
+    <!--Plugin galleggiamento-->
+    <plugin filename="libSurfaceUSV.so" name="vrx::SurfaceUSV">
+      <link_name>base_link</link_name>
+      <hull_height>1</hull_height>
+      <hull_radius>0.075</hull_radius>
+      <fluid_level>0.0</fluid_level>
+      <fluid_density>997</fluid_density>
+      <points>
+        <point>0 0.3 0</point>
+        <point>0.05 0.3 0</point>
+        <point>0.015 0.3 0</point>
+        <point>0.025 0.3 0</point>
+        <point>0.035 0.3 0</point>
+        <point>0.045 0.3 0</point>
+        <point>-0.05 0.3 0</point>
+        <point>-0.015 0.3 0</point>
+        <point>-0.025 0.3 0</point>
+        <point>-0.035 0.3 0</point>
+        <point>-0.045 0.3 0</point>
+      </points>
+      <wavefield>
+        <size>6000 6000</size>
+     		<cell_count>500 500</cell_count>
+        <topic>/vrx/wavefield/parameters</topic>
+      </wavefield>
+    </plugin>
+    <plugin filename="libSurfaceUSV.so" name="vrx::SurfaceUSV">
+      <link_name>base_link</link_name>
+      <hull_height>1</hull_height>
+      <hull_radius>0.075</hull_radius>
+      <fluid_level>0.0</fluid_level>
+      <fluid_density>997</fluid_density>
+      <points>
+        <point>0 -0.3 0</point>
+        <point>0.05 -0.3 0</point>
+        <point>0.015 -0.3 0</point>
+        <point>0.025 -0.3 0</point>
+        <point>0.035 -0.3 0</point>
+        <point>0.045 -0.3 0</point>
+        <point>-0.05 -0.3 0</point>
+        <point>-0.015 -0.3 0</point>
+        <point>-0.025 -0.3 0</point>
+        <point>-0.035 -0.3 0</point>
+        <point>-0.045 -0.3 0</point>
+      </points>
+      <wavefield>
+        <size>6000 6000</size>
+     		<cell_count>500 500</cell_count>
+        <topic>/vrx/wavefield/parameters</topic>
+      </wavefield>
+    </plugin>
+
+    <plugin
+        filename="libSimpleHydrodynamicsUSV.so"
+        name="vrx::SimpleHydrodynamicsUSV">
+        <link_name>base_link</link_name>
+        <!-- Added mass -->
+        <xDotU>0.0</xDotU>
+        <yDotV>0.0</yDotV>
+        <nDotR>0.0</nDotR>
+        <!-- Linear and quadratic drag -->
+        <!-- <xU>100.0</xU>
+        <xUU>150.0</xUU>
+        <yV>100.0</yV>
+        <yVV>100.0</yVV>
+        <zW>500.0</zW>
+        <kP>300.0</kP>
+        <kPP>600.0</kPP>
+        <mQ>600.0</mQ> 
+        <mQQ>900.0</mQQ>
+        <nR>800.0</nR>
+        <nRR>800.0</nRR> -->
+        <xU>0.5</xU>
+        <xUU>1</xUU>
+        <yV>0.5</yV>
+        <yVV>1</yVV>
+        <zW>0.5</zW>
+        <kP>2</kP>
+        <kPP>2</kPP>
+        <mQ>2</mQ> 
+        <mQQ>2</mQQ>
+        <nR>2</nR>
+        <nRR>2</nRR>
+      </plugin>
 
   </model>
 </sdf>
