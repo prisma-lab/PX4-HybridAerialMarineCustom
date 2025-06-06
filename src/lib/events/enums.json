@@ -596,6 +596,14 @@
                             "name": "external8",
                             "description": "External 8"
                         },
+                        "32": {
+                            "name": "prisma_man",
+                            "description": "PRISMA Manual"
+                        },
+                        "33": {
+                            "name": "prisma_marine_manual",
+                            "description": "PRISMA Marine Manual Navigation"
+                        },
                         "255": {
                             "name": "unknown",
                             "description": "[Unknown]"

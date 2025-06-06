@@ -466,7 +466,8 @@
       <velocity_control>false</velocity_control>
       <max_thrust_cmd>2300</max_thrust_cmd>
       <namespace>model</namespace>
-      <topic>USV_test_0/servo_0</topic> 
+      <topic>USV_test_0/servo_0</topic>
+      <!--<commandSubTopic>command/motor_speed</commandSubTopic>-->
     </plugin>
     <plugin
       filename="gz-sim-thruster-system"
@@ -479,6 +480,7 @@
       <max_thrust_cmd>2300</max_thrust_cmd>
       <namespace>model</namespace>
       <topic>USV_test_0/servo_1</topic> 
+      <!--<commandSubTopic>command/motor_speed</commandSubTopic>-->
     </plugin>
 
     <!--Propeller-->

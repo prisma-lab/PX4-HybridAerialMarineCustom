@@ -5,6 +5,14 @@
 #####
 publications:
 
+  ## CUSTOM
+  - topic: /fmu/out/left_thruster
+    type: px4_msgs::msg::LeftThruster
+
+  - topic: /fmu/out/right_thruster
+    type: px4_msgs::msg::RightThruster
+  ## End-CUSTOM
+
   - topic: /fmu/out/register_ext_component_reply
     type: px4_msgs::msg::RegisterExtComponentReply
 

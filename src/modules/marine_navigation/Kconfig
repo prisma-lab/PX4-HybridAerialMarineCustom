@@ -1,0 +1,5 @@
+menuconfig MODULES_MARINE_NAVIGATION
+	bool "marine_navigation"
+	default n
+	---help---
+		Enable support for marine_navigation

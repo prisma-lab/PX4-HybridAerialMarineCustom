@@ -365,6 +365,17 @@ int Commander::custom_command(int argc, char *argv[])
 	}
 
 	if (!strcmp(argv[0], "mode")) {
+	
+		// CUSTOM
+		uORB::Subscription _vehicle_land_detected_sub{ORB_ID(vehicle_land_detected)};
+		bool drone_landed = false;
+		if (_vehicle_land_detected_sub.updated()) {
+			vehicle_land_detected_s vehicle_land_detected{};
+			_vehicle_land_detected_sub.copy(&vehicle_land_detected);
+			drone_landed = vehicle_land_detected.maybe_landed;;
+		}
+		// END CUSTOM
+
 		if (argc > 1) {
 
 			if (!strcmp(argv[1], "manual")) {
@@ -412,8 +423,22 @@ int Commander::custom_command(int argc, char *argv[])
 			} else if (!strcmp(argv[1], "ext1")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_AUTO,
 						     PX4_CUSTOM_SUB_MODE_EXTERNAL1);
-
-			} else {
+			}
+			// CUSTOM
+			else if (!strcmp(argv[1], "prisma:prisma1")) {
+				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
+						     PX4_CUSTOM_SUB_MODE_PRISMA_1);
+			} else if (!strcmp(argv[1], "prisma:marine_manual") && drone_landed) {
+				// Set the vehicle to marine manual mode only if disarmed
+				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
+						     PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL);
+			}
+			else if (!strcmp(argv[1], "prisma:marine_manual") && !drone_landed) {
+				// Warning switch is not possible because the drone is flying
+				PX4_ERR("Cannot switch to marine manual mode while the vehicle is armed or flying.");
+			}  
+			// END CUSTOM
+			else {
 				PX4_ERR("argument %s unsupported.", argv[1]);
 			}
 
@@ -839,6 +864,24 @@ Commander::handle_command(const vehicle_command_s &cmd)
 				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_OFFBOARD) {
 					desired_nav_state = vehicle_status_s::NAVIGATION_STATE_OFFBOARD;
 				}
+				// CUSTOM
+				else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_PRISMA) {
+					//PX4_INFO("Detected desired PRISMA main state");
+					if (custom_sub_mode > 0) {
+
+						switch (custom_sub_mode) {
+						case PX4_CUSTOM_SUB_MODE_PRISMA_1:
+							//PX4_INFO("Detected desired PRISMA1 sub state");
+							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_PRISMA_1;
+							break;
+						case PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL:
+							//PX4_INFO("Detected desired PRISMA1 sub state");
+							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL;
+							break;
+						}
+					}
+				}
+				// END CUSTOM
 
 			} else {
 				/* use base mode */
