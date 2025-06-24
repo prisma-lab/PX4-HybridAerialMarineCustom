@@ -53,7 +53,7 @@ private:
 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
 	perf_counter_t _loop_interval_perf{perf_alloc(PC_INTERVAL, MODULE_NAME": interval")};
 
-	vehicle_control_mode_s _vehicle_control_mode{};
+	vehicle_control_mode_s vehicle_control_mode{};
 
 	// Parameters
 	DEFINE_PARAMETERS(

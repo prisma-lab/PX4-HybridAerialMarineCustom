@@ -40,33 +40,37 @@ void MarineNavigation::Run()
 		updateParams();
 	}
 
-	_vehicle_control_mode_sub.update(&_vehicle_control_mode);
+	if(_vehicle_control_mode_sub.updated()) {
+		_vehicle_control_mode_sub.copy(&vehicle_control_mode);
+	}
 
 	// Read RC stick input (throttle and roll)
 	manual_control_setpoint_s rc_input{};
 
-	if (_manual_control_sub.update(&rc_input) && _vehicle_control_mode.flag_control_prisma_marine_manual_enabled) {
+	if (_manual_control_sub.update(&rc_input) && vehicle_control_mode.flag_control_prisma_marine_manual_enabled) {
 		//	PX4_INFO("Throttle: %.2f | Roll: %.2f", (double)rc_input.throttle, (double)rc_input.roll);
 		
 		// ALlowing servos without armin
-		actuator_armed_s armed_msg{};
-		armed_msg.timestamp = hrt_absolute_time();
-		armed_msg.armed = false;
-		armed_msg.prearmed = true;
-		armed_msg.manual_lockdown = false;
-		armed_msg.force_failsafe = false;
+		// actuator_armed_s armed_msg{};
+		// armed_msg.timestamp = hrt_absolute_time();
+		// armed_msg.armed = false;
+		// armed_msg.prearmed = true;
+		// armed_msg.manual_lockdown = false;
+		// armed_msg.force_failsafe = false;
 
-		_armed_pub.publish(armed_msg);
+		// _armed_pub.publish(armed_msg);
 
 		// Publish on actiuator_servo topic even if not armed
 		actuator_servos_s actuator_servos{};
 		actuator_servos.control[0] = rc_input.throttle; // Throttle
 		actuator_servos.control[1] = rc_input.roll; // Roll
+		//actuator_servos.control[0] = 1; // Throttle
+		//actuator_servos.control[1] = -1; // Roll
 		_actuator_servos_pub.publish(actuator_servos);
 		// Publish on orb_test topic	
 	}
 	// If NOT in manual control mode, stop the servos
-	else if(!_vehicle_control_mode.flag_control_prisma_marine_manual_enabled) {
+	else if(!vehicle_control_mode.flag_control_prisma_marine_manual_enabled) {
 		actuator_servos_s actuator_servos{};
 		actuator_servos.control[0] = 0; 
 		actuator_servos.control[1] = 0; 

@@ -92,7 +92,7 @@ static inline navigation_mode_t navigation_mode(uint8_t nav_state)
 
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL8: return navigation_mode_t::external8;
 
-	// CUSTOM
+	// CUSTOM PRISMA MARINE
 	case vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL: return navigation_mode_t::prisma_marine_manual;
 	// END CUSTOM
 	}

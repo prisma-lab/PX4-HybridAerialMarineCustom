@@ -34,6 +34,10 @@
 #pragma once
 
 #include "framework.h"
+// CUSTOM PRISMA MARINE
+#include <uORB/Subscription.hpp>
+#include <uORB/topics/vehicle_status.h>
+// END CUSTOM
 
 
 class Failsafe : public FailsafeBase
@@ -52,6 +56,12 @@ protected:
 
 private:
 	void updateArmingState(const hrt_abstime &time_us, bool armed, const failsafe_flags_s &status_flags);
+
+	// CUSTOM PRISMA MARINE
+	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
+	vehicle_status_s _vehicle_status{};
+	bool in_marine_mode{false}; // true if in marine mode, false if in normal mode
+	// END CUSTOM
 
 	enum class ManualControlLossExceptionBits : int32_t {
 		Mission = (1 << 0),

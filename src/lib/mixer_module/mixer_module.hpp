@@ -59,6 +59,9 @@
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/actuator_outputs.h>
 #include <uORB/topics/parameter_update.h>
+// CUSTOM PRISMA MARINE
+#include <uORB/topics/vehicle_status.h>
+// END CUSTOM
 
 using namespace time_literals;
 
@@ -291,6 +294,12 @@ private:
 	uint32_t _reversible_mask{0}; ///< per-output bits. If set, the output is configured to be reversible (motors only)
 
 	uORB::SubscriptionCallbackWorkItem *_subscription_callback{nullptr}; ///< current scheduling callback
+
+	// CUSTOM PRISMA MARINE
+	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
+	vehicle_status_s _vehicle_status{};
+	bool in_marine_mode{false}; 
+	// END CUSTOM
 
 
 	DEFINE_PARAMETERS(

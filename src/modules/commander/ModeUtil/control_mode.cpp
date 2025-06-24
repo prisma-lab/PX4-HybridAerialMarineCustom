@@ -49,7 +49,7 @@ void getVehicleControlMode(uint8_t nav_state, uint8_t vehicle_type,
 
 	switch (nav_state) {
 
-	// CUSTOM
+	// CUSTOM PRISMA MARINE
 	case vehicle_status_s::NAVIGATION_STATE_PRISMA_1:
 		vehicle_control_mode.flag_control_offboard_enabled = true;
 		vehicle_control_mode.flag_control_prisma_marine_manual_enabled = true;
@@ -65,15 +65,10 @@ void getVehicleControlMode(uint8_t nav_state, uint8_t vehicle_type,
 
 	case vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL:
 		vehicle_control_mode.flag_control_prisma_marine_manual_enabled = true;
-		// vehicle_control_mode.flag_control_manual_enabled = true;
-		// vehicle_control_mode.flag_control_rates_enabled = true;
-		// vehicle_control_mode.flag_control_attitude_enabled = true;
-		vehicle_control_mode.flag_control_altitude_enabled = false;
-		// vehicle_control_mode.flag_control_climb_rate_enabled = true;
-		// vehicle_control_mode.flag_control_position_enabled = true;
-		//vehicle_control_mode.flag_control_velocity_enabled = true;
-		//break;
 
+		vehicle_control_mode.flag_control_position_enabled = false;
+		vehicle_control_mode.flag_control_velocity_enabled = false;
+		vehicle_control_mode.flag_control_altitude_enabled = false;
 		vehicle_control_mode.flag_control_manual_enabled = false;
 		vehicle_control_mode.flag_control_rates_enabled = false;
 		vehicle_control_mode.flag_control_attitude_enabled = false;

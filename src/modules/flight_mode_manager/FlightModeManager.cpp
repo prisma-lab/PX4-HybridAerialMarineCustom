@@ -197,7 +197,7 @@ void FlightModeManager::start_flight_task()
 	}
 
 	// Manual position control
-	// CUSTOM
+	// CUSTOM PRISMA MARINE
 	if ((_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_POSCTL) 
 		|| _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL
 		|| task_failure) {

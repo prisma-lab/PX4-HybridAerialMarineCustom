@@ -469,6 +469,14 @@ bool MixingOutput::update()
 void
 MixingOutput::limitAndUpdateOutputs(float outputs[MAX_ACTUATORS], bool has_updates)
 {
+
+	// CUSTOM PRISMA MARINE
+		if (_vehicle_status_sub.updated()) {
+			_vehicle_status_sub.copy(&_vehicle_status);
+			in_marine_mode = (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL);
+		}
+	// END CUSTOM
+
 	bool stop_motors = !_throttle_armed && !_actuator_test.inTestMode();
 
 	if (_armed.lockdown || _armed.manual_lockdown) {
@@ -485,7 +493,20 @@ MixingOutput::limitAndUpdateOutputs(float outputs[MAX_ACTUATORS], bool has_updat
 			_current_output_value[i] = actualFailsafeValue(i);
 		}
 
-	} else {
+	} 
+	// CUSTOM PRISMA MARINE
+	else if (in_marine_mode) {
+		for (int i = 0; i < _max_num_outputs; i++) {
+			if (_function_assignment[i] >= OutputFunction::Motor1 && _function_assignment[i] <= OutputFunction::MotorMax) {
+                _current_output_value[i] = _disarmed_value[i];
+            }
+			else {
+				_current_output_value[i] = output_limit_calc_single(i, outputs[i]);
+			}
+		}
+	}
+	// END CUSTOM
+	else {
 		// the output limit call takes care of out of band errors, NaN and constrains
 		output_limit_calc(_throttle_armed || _actuator_test.inTestMode(), _max_num_outputs, outputs);
 	}
