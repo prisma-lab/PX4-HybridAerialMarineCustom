@@ -5,14 +5,6 @@
 #####
 publications:
 
-  ## CUSTOM
-  - topic: /fmu/out/left_thruster
-    type: px4_msgs::msg::LeftThruster
-
-  - topic: /fmu/out/right_thruster
-    type: px4_msgs::msg::RightThruster
-  ## End-CUSTOM
-
   - topic: /fmu/out/register_ext_component_reply
     type: px4_msgs::msg::RegisterExtComponentReply
 
@@ -48,7 +40,10 @@ publications:
     
   - topic: /fmu/out/actuator_outputs_sim
     type: px4_msgs::msg::ActuatorOutputs
-    
+
+  - topic: /fmu/out/actuator_servos
+    type: px4_msgs::msg::ActuatorServos
+
   - topic: /fmu/out/vehicle_attitude_setpoint
     type: px4_msgs::msg::VehicleAttitudeSetpoint
     
@@ -61,8 +56,8 @@ publications:
   - topic: /fmu/out/vehicle_imu_status
     type: px4_msgs::msg::VehicleImuStatus 
 
-  # - topic: /fmu/out/vehicle_angular_velocity
-  #   type: px4_msgs::msg::VehicleAngularVelocity
+  - topic: /fmu/out/vehicle_angular_velocity
+    type: px4_msgs::msg::VehicleAngularVelocity
 
   - topic: /fmu/out/vehicle_attitude
     type: px4_msgs::msg::VehicleAttitude

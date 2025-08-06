@@ -462,11 +462,13 @@
       <joint_name>left_th_joint</joint_name>
       <thrust_coefficient>0.007422</thrust_coefficient>
       <fluid_density>1000</fluid_density>
-      <propeller_diameter>0.3</propeller_diameter>
+      <propeller_diameter>0.5</propeller_diameter>
+      <thrust_coefficient>5.0</thrust_coefficient>
       <velocity_control>false</velocity_control>
-      <max_thrust_cmd>14300</max_thrust_cmd>
+      <max_thrust_cmd>5500</max_thrust_cmd>
       <namespace>model</namespace>
       <topic>USV_test_0/servo_0</topic>
+      <!-- <topic>USV_test_0/left_thruster</topic> -->
       <!--<commandSubTopic>command/motor_speed</commandSubTopic>-->
     </plugin>
     <plugin
@@ -475,11 +477,13 @@
       <joint_name>right_th_joint</joint_name>
       <thrust_coefficient>0.007422</thrust_coefficient>
       <fluid_density>1000</fluid_density>
-      <propeller_diameter>0.3</propeller_diameter>
+      <propeller_diameter>0.5</propeller_diameter>
+      <thrust_coefficient>5.0</thrust_coefficient>
       <velocity_control>false</velocity_control>
-      <max_thrust_cmd>14300</max_thrust_cmd>
+      <max_thrust_cmd>5500</max_thrust_cmd>
       <namespace>model</namespace>
-      <topic>USV_test_0/servo_1</topic> 
+      <topic>USV_test_0/servo_1</topic>
+      <!-- <topic>USV_test_0/right_thruster</topic>  -->
       <!--<commandSubTopic>command/motor_speed</commandSubTopic>-->
     </plugin>
 
@@ -849,10 +853,10 @@
         <mQQ>900.0</mQQ>
         <nR>800.0</nR>
         <nRR>800.0</nRR> -->
-        <xU>0.5</xU>
-        <xUU>1</xUU>
-        <yV>0.5</yV>
-        <yVV>1</yVV>
+        <xU>0.3</xU>
+        <xUU>0.8</xUU>
+        <yV>0.3</yV>
+        <yVV>0.8</yVV>
         <zW>0.5</zW>
         <kP>2</kP>
         <kPP>2</kPP>

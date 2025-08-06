@@ -53,9 +53,12 @@ param set-default SIM_GZ_EC_MAX2 3500
 param set-default SIM_GZ_EC_MAX3 3500
 param set-default SIM_GZ_EC_MAX4 3500
 
-param set-default CA_SV_TL0_MAXA 10
-param set-default CA_SV_TL0_MINA -10
-param set-default CA_SV_TL1_MAXA 10
-param set-default CA_SV_TL1_MINA -10
+param set-default  CA_SV_CS0_TRQ_Y 1000
+param set-default  CA_SV_CS1_TRQ_Y 1000
+
+# param set-default CA_SV_TL0_MAXA 2500
+# param set-default CA_SV_TL0_MINA -2500
+# param set-default CA_SV_TL1_MAXA 2500
+# param set-default CA_SV_TL1_MINA -2500
 
 param set-default MPC_THR_HOVER 0.60
