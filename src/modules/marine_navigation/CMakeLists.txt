@@ -37,8 +37,8 @@ px4_add_module(
 		#-DDEBUG_BUILD   # uncomment for PX4_DEBUG output
 		#-O0             # uncomment when debugging
 	SRCS
-		MarineNavigation.hpp
-		MarineNavigation.cpp
+		MarineNavigation_PID.hpp
+		MarineNavigation_PID.cpp
 	DEPENDS
 		px4_work_queue
 	)
