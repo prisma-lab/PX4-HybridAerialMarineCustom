@@ -32,15 +32,14 @@ using matrix::Vector2f;
 
 #define MAX_YAW_SPEED 0.24f // Maximum yaw speed in rad/s
 #define MAX_PROP_THRUST 1500.0f // Maximum propeller thrust (normalized, 0 to 1)
-#define K_p 2.5f // Proportional gain for yaw control
-#define K_i 1.8f // Integral gain for yaw control
+#define K_q 4.6f // Proportional gain for omega desired
+#define K_r 2.4f // Proportional gain for torque
+#define leak_factor 1.0f // Leak factor for the state variable
 #define LEFT_TH_X -0.53 // Left thruster X position
 #define LEFT_TH_Y 0.3 // Left thruster Y position
 #define RIGHT_TH_X -0.53 // Right thruster X position
 #define RIGHT_TH_Y -0.3 // Right thruster Y position
-#define MAX_SATURATION 100.0f // Maximum saturation for control inputs
 #define DRONE_MASS 16.0f // Mass of the drone in kg
-#define MAX_CYCLE 200 // Maximum number of cycles before resetting the unwrapped yaw feedback and integral
 
 class MarineNavigation : public ModuleBase<MarineNavigation>, public ModuleParams, public px4::ScheduledWorkItem
 {
@@ -58,13 +57,10 @@ public:
 private:
 	void Run() override;
 	Vector3f getRPY(const Quatf &q); 
-	void forward_euler_integration(const float &d_t, const float &u_n); 
+	void updateQDesired(const float &d_t, const float &omega_z); 
 	Vector2f getControlInput(const float &throttle_input, const float &yaw_speed_input); 
-	float filterYawInput(const float &yaw_input); 
-	float unwrapYawFeedback(const float &yaw_uw_old); 
-	void resetWrapping();
-	bool resetCheck();
-	float wrap(const float &angle, const float &wrap_number = 1.0f); // Default wrap number is 1.0 for [-1, 1] wrapping
+	float computeOmegaInput(const float &omega_input);  
+	float wrap(const float &angle, const float &wrap_number = M_PI); // Default wrap number is M_PI for [-M_PI, M_PI] wrapping
 
 	// Publications
 	uORB::Publication<orb_test_s> _orb_test_pub{ORB_ID(orb_test)};
@@ -97,17 +93,14 @@ private:
 	// Control variables
 	float max_propeller_trust{MAX_PROP_THRUST};
 	float max_yawspeed{MAX_YAW_SPEED};
-	float yaw_fb;
-	float yaw_fb_old{0}; 
-	float yaw_fb_unwrapped{0}; // Unwrapped yaw feedback for integral error calculation
+	float yaw_cont;
+	float yaw_fb_prev;
+	Quatf quat_fb;
+	Quatf quat_d; // Desired uaternion
+	Quatf quat_error;
 	float yaw_rate_fb;
-	float yaw_error;
 	float yaw_rate_error;
-	float yaw_input_integral;
 	bool module_initialization{false}; // Flag to check if integral is initialized
 	float last_timestamp{0};
 	Vector2f control_input{0, 0}; // Control inputs for the propellers
-	int cycle_count{0}; // Cycle count for resetting unwrapped yaw feedback and integral
-	float wrapping_signum{-1.0f}; // Signum for wrapping yaw input integral
-	
 };

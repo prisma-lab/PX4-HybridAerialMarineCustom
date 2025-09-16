@@ -38,9 +38,7 @@ using matrix::Vector2f;
 #define LEFT_TH_Y 0.3 // Left thruster Y position
 #define RIGHT_TH_X -0.53 // Right thruster X position
 #define RIGHT_TH_Y -0.3 // Right thruster Y position
-#define MAX_SATURATION 100.0f // Maximum saturation for control inputs
 #define DRONE_MASS 16.0f // Mass of the drone in kg
-#define MAX_CYCLE 200 // Maximum number of cycles before resetting the unwrapped yaw feedback and integral
 
 class MarineNavigation : public ModuleBase<MarineNavigation>, public ModuleParams, public px4::ScheduledWorkItem
 {
