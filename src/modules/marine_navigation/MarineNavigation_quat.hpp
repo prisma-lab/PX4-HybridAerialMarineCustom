@@ -8,6 +8,7 @@
 
 #include <drivers/drv_hrt.h>
 #include <lib/perf/perf_counter.h>
+#include <lib/parameters/param.h>
 
 #include <matrix/math.hpp>
 
@@ -29,17 +30,7 @@ using matrix::Eulerf;
 using matrix::Quatf;
 using matrix::Vector3f;
 using matrix::Vector2f;
-
-#define MAX_YAW_SPEED 0.24f // Maximum yaw speed in rad/s
-#define MAX_PROP_THRUST 1500.0f // Maximum propeller thrust (normalized, 0 to 1)
-#define K_q 4.6f // Proportional gain for omega desired
-#define K_r 2.4f // Proportional gain for torque
-#define leak_factor 1.0f // Leak factor for the state variable
-#define LEFT_TH_X -0.53 // Left thruster X position
-#define LEFT_TH_Y 0.3 // Left thruster Y position
-#define RIGHT_TH_X -0.53 // Right thruster X position
-#define RIGHT_TH_Y -0.3 // Right thruster Y position
-#define DRONE_MASS 16.0f // Mass of the drone in kg
+using matrix::SquareMatrix;
 
 class MarineNavigation : public ModuleBase<MarineNavigation>, public ModuleParams, public px4::ScheduledWorkItem
 {
@@ -87,12 +78,32 @@ private:
 	// Parameters
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::SYS_AUTOSTART>) _param_sys_autostart,
-		(ParamInt<px4::params::SYS_AUTOCONFIG>) _param_sys_autoconfig
+		(ParamInt<px4::params::SYS_AUTOCONFIG>) _param_sys_autoconfig,
+		(ParamFloat<px4::params::MARINE_PROP_C>) _param_marine_prop_c,
+		(ParamFloat<px4::params::MARINE_KQ>) _param_marine_kq,
+		(ParamFloat<px4::params::MARINE_KR>) _param_marine_kr,
+		(ParamFloat<px4::params::MARINE_LEAK>) _param_marine_leak,
+		(ParamFloat<px4::params::MARINE_MAX_TH>) _param_marine_max_th,
+		(ParamFloat<px4::params::MARINE_MAX_YAW>) _param_marine_max_yaw,
+		(ParamFloat<px4::params::MARINE_L_X>) _param_marine_l_x,
+		(ParamFloat<px4::params::MARINE_L_Y>) _param_marine_l_y,
+		(ParamFloat<px4::params::MARINE_R_X>) _param_marine_r_x,
+		(ParamFloat<px4::params::MARINE_R_Y>) _param_marine_r_y	
 	)
 
+	// Parameter variables
+	float Prop_C{_param_marine_prop_c.get()};
+	float K_q{_param_marine_kq.get()};
+	float K_r{_param_marine_kr.get()};
+	float leak{_param_marine_leak.get()};
+	float max_propeller_th{_param_marine_max_th.get()};
+	float max_yawspeed{_param_marine_max_yaw.get()};
+	float left_th_x{_param_marine_l_x.get()};
+	float left_th_y{_param_marine_l_y.get()};
+	float right_th_x{_param_marine_r_x.get()};
+	float right_th_y{_param_marine_r_y.get()};
+
 	// Control variables
-	float max_propeller_trust{MAX_PROP_THRUST};
-	float max_yawspeed{MAX_YAW_SPEED};
 	float yaw_cont;
 	float yaw_fb_prev;
 	Quatf quat_fb;

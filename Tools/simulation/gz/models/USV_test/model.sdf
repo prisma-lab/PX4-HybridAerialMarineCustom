@@ -460,12 +460,11 @@
       filename="gz-sim-thruster-system"
       name="gz::sim::systems::Thruster">
       <joint_name>left_th_joint</joint_name>
-      <thrust_coefficient>0.007422</thrust_coefficient>
+      <thrust_coefficient>0.00004422</thrust_coefficient>
       <fluid_density>1000</fluid_density>
-      <propeller_diameter>0.5</propeller_diameter>
-      <thrust_coefficient>5.0</thrust_coefficient>
+      <propeller_diameter>0.9</propeller_diameter>
       <velocity_control>false</velocity_control>
-      <max_thrust_cmd>5500</max_thrust_cmd>
+      <max_thrust_cmd>1</max_thrust_cmd>
       <namespace>model</namespace>
       <topic>USV_test_0/servo_0</topic>
       <!-- <topic>USV_test_0/left_thruster</topic> -->
@@ -475,12 +474,11 @@
       filename="gz-sim-thruster-system"
       name="gz::sim::systems::Thruster">
       <joint_name>right_th_joint</joint_name>
-      <thrust_coefficient>0.007422</thrust_coefficient>
+      <thrust_coefficient>0.00004422</thrust_coefficient>
       <fluid_density>1000</fluid_density>
-      <propeller_diameter>0.5</propeller_diameter>
-      <thrust_coefficient>5.0</thrust_coefficient>
+      <propeller_diameter>0.9</propeller_diameter>
       <velocity_control>false</velocity_control>
-      <max_thrust_cmd>5500</max_thrust_cmd>
+      <max_thrust_cmd>1</max_thrust_cmd>
       <namespace>model</namespace>
       <topic>USV_test_0/servo_1</topic>
       <!-- <topic>USV_test_0/right_thruster</topic>  -->

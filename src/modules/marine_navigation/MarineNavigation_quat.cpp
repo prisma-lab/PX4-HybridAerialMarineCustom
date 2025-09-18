@@ -38,6 +38,17 @@ void MarineNavigation::Run()
 		parameter_update_s p{};
 		_parameter_update_sub.copy(&p);
 		updateParams();
+		// Update parametrs variables
+		Prop_C = _param_marine_prop_c.get();
+		K_q = _param_marine_kq.get();
+		K_r = _param_marine_kr.get();
+		leak = _param_marine_leak.get();
+		max_propeller_th = _param_marine_max_th.get();
+		max_yawspeed = _param_marine_max_yaw.get();
+		left_th_x = _param_marine_l_x.get();
+		left_th_y = _param_marine_l_y.get();
+		right_th_x = _param_marine_r_x.get();
+		right_th_y = _param_marine_r_y.get();
 	}
 
 	float dt{0.01f}; // Default time step for integration
@@ -78,6 +89,7 @@ void MarineNavigation::Run()
    			_vehicle_angular_velocity_sub.copy(&vehicle_angular_velocity);
 	  		yaw_rate_fb = vehicle_angular_velocity.xyz[2]; 
  		}
+		PX4_INFO("parameter update test: %.2f", (double)_param_marine_kq.get());
 		PX4_INFO("Y fb: %.2f, YR fb : %.2f", (double)rpy(2), (double)yaw_rate_fb);
 		PX4_INFO("Omega z input: %.2f", (double)computeOmegaInput(rc_input.roll));
 		PX4_INFO("Omega z error: %.2f", (double)(computeOmegaInput(rc_input.roll) - yaw_rate_fb));
@@ -86,12 +98,15 @@ void MarineNavigation::Run()
 		// Compute quaternion error
 		quat_error = quat_d * quat_fb.inversed();
 		quat_error.normalize();
-		if (fabs(quat_error(3)) < 0.009f){
+		if (fabs(quat_error(3)) < 0.01f){
 			quat_error(3) = 0.0f;
 		}
 		// Compute omega desired and deal with unwinding
 		Vector3f omega_d = Vector3f(quat_error(1), quat_error(2), quat_error(3)) * K_q * std::copysign(1.0f, quat_error(0));
 		PX4_INFO("Omega d: %.2f, %.2f, %.2f", (double)omega_d(0), (double)omega_d(1), (double)omega_d(2));
+		if (fabs(omega_d(2)) < 0.01f) {
+			omega_d(2) = 0.0f;
+		}
 		float yaw_control_input = K_r * (-omega_d(2) + yaw_rate_fb);
 
 		// Print throttle and yaw control inputs
@@ -102,7 +117,9 @@ void MarineNavigation::Run()
 		PX4_INFO("quat_d [3]: %.2f, quat_fb [3]: %.2f", (double)quat_d(3), (double)quat_fb(3));
 		PX4_INFO("Quat error [0]: %.2f, Quat error [3]: %.2f, YR error : %.2f", (double)quat_error(0), (double)quat_error(3), (double)(omega_d(2) - yaw_rate_fb));
 		PX4_INFO("angulare error norm: %.2f", (double)(2.0f * acosf(fabsf(quat_error(0)))));
+
 		control_input = getControlInput(rc_input.throttle, yaw_control_input);
+		
 		PX4_INFO("Control Input Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
 
 		// Publish on actiuator_servo topic even if not armed
@@ -136,7 +153,6 @@ Vector3f MarineNavigation::getRPY(const Quatf &q)
 
 void MarineNavigation::updateQDesired(const float &d_t, const float &omega_z)
 {
-	float leak = leak_factor; // Leak factor for the state variable
 	Quatf quat_d_n1 = Quatf(quat_d(0)*cos(omega_z * d_t / 2) + quat_d(3) * sin(omega_z * d_t / 2) - d_t * leak * (quat_d(0) - quat_fb(0)), 
 	0, 
 	0, 
@@ -147,10 +163,17 @@ void MarineNavigation::updateQDesired(const float &d_t, const float &omega_z)
 
 Vector2f MarineNavigation::getControlInput(const float &throttle_input, const float &yaw_speed_input)
 {
+
+	SquareMatrix<float, 2> allocation_matrix;
+	allocation_matrix(0, 0) = Prop_C;
+	allocation_matrix(0, 1) = Prop_C;
+	allocation_matrix(1, 0) = -left_th_y * Prop_C; // Right thruster x position
+	allocation_matrix(1, 1) = -right_th_y * Prop_C; // Right thruster y position
+
 	Vector2f computed_input;
 	// Calculate the control input for each thruster based on the throttle and yaw speed inputs
-	computed_input(0) = (0.3f * 2 * throttle_input + yaw_speed_input)/ 0.6f;
-	computed_input(1) = (0.3f * 2 * throttle_input - yaw_speed_input)/ 0.6f;
+	computed_input(0) = allocation_matrix.I()(0, 0) * throttle_input * max_propeller_th + allocation_matrix.I()(0, 1) * -yaw_speed_input; // Left thruster input
+	computed_input(1) = allocation_matrix.I()(1, 0) * throttle_input * max_propeller_th + allocation_matrix.I()(1, 1) * -yaw_speed_input; // Right thruster input
 
 	if (computed_input(0) > 1.0f) {
 		computed_input(0) = 1.0f; // Clamp left thruster input to 1
@@ -169,14 +192,14 @@ Vector2f MarineNavigation::getControlInput(const float &throttle_input, const fl
 float MarineNavigation::computeOmegaInput(const float &omega_input)
 {
 	float omega_filtered;
-	if (omega_input <= 0.01f && omega_input >= -0.01f) {
+	if (fabs(omega_input) <= 0.009f) {
 		omega_filtered = 0.0f;	
 	}
 	else {
 		omega_filtered = omega_input; 
 	}
 
-	omega_filtered = 0.9f * omega_filtered * MAX_YAW_SPEED;
+	omega_filtered = omega_filtered * max_yawspeed;
 
 	return omega_filtered;
 }
