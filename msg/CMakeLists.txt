@@ -236,9 +236,8 @@ set(msg_files
 	VtolVehicleStatus.msg
 	Wind.msg
 	YawEstimatorStatus.msg
-	## CUSTOM
-	LeftThruster.msg
-	RightThruster.msg	
+	## CUSTOM PRISMA MARINE
+	MarineNavigation.msg	
 	## END-CUSTOM
 )
 list(SORT msg_files)

@@ -89,7 +89,6 @@ void MarineNavigation::Run()
    			_vehicle_angular_velocity_sub.copy(&vehicle_angular_velocity);
 	  		yaw_rate_fb = vehicle_angular_velocity.xyz[2]; 
  		}
-		PX4_INFO("parameter update test: %.2f", (double)_param_marine_kq.get());
 		PX4_INFO("Y fb: %.2f, YR fb : %.2f", (double)rpy(2), (double)yaw_rate_fb);
 		PX4_INFO("Omega z input: %.2f", (double)computeOmegaInput(rc_input.roll));
 		PX4_INFO("Omega z error: %.2f", (double)(computeOmegaInput(rc_input.roll) - yaw_rate_fb));
@@ -107,10 +106,10 @@ void MarineNavigation::Run()
 		if (fabs(omega_d(2)) < 0.01f) {
 			omega_d(2) = 0.0f;
 		}
-		float yaw_control_input = K_r * (-omega_d(2) + yaw_rate_fb);
+		float torque_input = K_r * (-omega_d(2) + yaw_rate_fb);
 
 		// Print throttle and yaw control inputs
-		PX4_INFO("Throttle: %.2f, Roll input : %.2f, Torque Input: %.2f", double(rc_input.throttle), (double)rc_input.roll, double(yaw_control_input));
+		PX4_INFO("Throttle: %.2f, Roll input : %.2f, Torque Input: %.2f", double(rc_input.throttle), (double)rc_input.roll, double(torque_input));
 		PX4_INFO("quat_d [0]: %.2f, quat_fb [0]: %.2f", (double)quat_d(0), (double)quat_fb(0));
 		PX4_INFO("quat_d [1]: %.2f, quat_fb [1]: %.2f", (double)quat_d(1), (double)quat_fb(1));
 		PX4_INFO("quat_d [2]: %.2f, quat_fb [2]: %.2f", (double)quat_d(2), (double)quat_fb(2));
@@ -118,23 +117,75 @@ void MarineNavigation::Run()
 		PX4_INFO("Quat error [0]: %.2f, Quat error [3]: %.2f, YR error : %.2f", (double)quat_error(0), (double)quat_error(3), (double)(omega_d(2) - yaw_rate_fb));
 		PX4_INFO("angulare error norm: %.2f", (double)(2.0f * acosf(fabsf(quat_error(0)))));
 
-		control_input = getControlInput(rc_input.throttle, yaw_control_input);
+		control_input = getControlInput(rc_input.throttle, torque_input);
 		
 		PX4_INFO("Control Input Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
 
-		// Publish on actiuator_servo topic even if not armed
+		// Publish on actuator_servos topic even if not armed
 		actuator_servos_s actuator_servos{};
+		actuator_servos.timestamp = hrt_absolute_time();
 		actuator_servos.control[0] = control_input(0); // Left propeller control input
 		actuator_servos.control[1] = control_input(1); // Right propeller
 		_actuator_servos_pub.publish(actuator_servos);	
+
+		// Publish on marine_navigation topic
+		marine_navigation_s marine_navigation{};
+		marine_navigation.timestamp = hrt_absolute_time();
+		marine_navigation.q_desired[0] = quat_d(0);
+		marine_navigation.q_desired[1] = quat_d(1);
+		marine_navigation.q_desired[2] = quat_d(2);
+		marine_navigation.q_desired[3] = quat_d(3);
+		marine_navigation.q_feedback[0] = quat_fb(0);
+		marine_navigation.q_feedback[1] = quat_fb(1);
+		marine_navigation.q_feedback[2] = quat_fb(2);
+		marine_navigation.q_feedback[3] = quat_fb(3);
+		marine_navigation.q_error[0] = quat_error(0);
+		marine_navigation.q_error[1] = quat_error(1);
+		marine_navigation.q_error[2] = quat_error(2);
+		marine_navigation.q_error[3] = quat_error(3);
+		marine_navigation.thrust_input = rc_input.throttle;
+		marine_navigation.ang_vel_input = rc_input.roll;
+		marine_navigation.desired_thrust = rc_input.throttle * max_propeller_th;
+		marine_navigation.desired_angular_vel = computeOmegaInput(rc_input.roll);
+		marine_navigation.angular_vel_error = computeOmegaInput(rc_input.roll) - yaw_rate_fb;
+		marine_navigation.omega_desired_z = omega_d(2);
+		marine_navigation.torque_input = torque_input;
+		marine_navigation.angular_error = 2.0f * acosf(fabsf(quat_error(0)));
+
+		_marine_navigation_pub.publish(marine_navigation);
 	}
 	// If NOT in manual control mode, stop the servos
 	else if(!vehicle_control_mode.flag_control_prisma_marine_manual_enabled) {
 		actuator_servos_s actuator_servos{};
+		actuator_servos.timestamp = hrt_absolute_time();
 		actuator_servos.control[0] = 0; 
 		actuator_servos.control[1] = 0; 
 		_actuator_servos_pub.publish(actuator_servos);
-		// Publish on orb_test topic	
+		
+		marine_navigation_s marine_navigation{};
+		marine_navigation.timestamp = hrt_absolute_time();
+		marine_navigation.q_desired[0] = 0;
+		marine_navigation.q_desired[1] = 0;
+		marine_navigation.q_desired[2] = 0;
+		marine_navigation.q_desired[3] = 0;
+		marine_navigation.q_feedback[0] = 0;
+		marine_navigation.q_feedback[1] = 0;
+		marine_navigation.q_feedback[2] = 0;
+		marine_navigation.q_feedback[3] = 0;
+		marine_navigation.q_error[0] = 0;
+		marine_navigation.q_error[1] = 0;
+		marine_navigation.q_error[2] = 0;
+		marine_navigation.q_error[3] = 0;
+		marine_navigation.thrust_input = 0;
+		marine_navigation.ang_vel_input = 0;
+		marine_navigation.desired_thrust = 0;
+		marine_navigation.desired_angular_vel = 0;
+		marine_navigation.angular_vel_error = 0;
+		marine_navigation.omega_desired_z = 0;
+		marine_navigation.torque_input = 0;
+		marine_navigation.angular_error = 0;
+
+		_marine_navigation_pub.publish(marine_navigation);
 
 		// Reset variables
 		if (module_initialization) {
@@ -161,7 +212,7 @@ void MarineNavigation::updateQDesired(const float &d_t, const float &omega_z)
 	quat_d = quat_d_n1;
 }
 
-Vector2f MarineNavigation::getControlInput(const float &throttle_input, const float &yaw_speed_input)
+Vector2f MarineNavigation::getControlInput(const float &throttle_input, const float &T_input)
 {
 
 	SquareMatrix<float, 2> allocation_matrix;
@@ -172,8 +223,8 @@ Vector2f MarineNavigation::getControlInput(const float &throttle_input, const fl
 
 	Vector2f computed_input;
 	// Calculate the control input for each thruster based on the throttle and yaw speed inputs
-	computed_input(0) = allocation_matrix.I()(0, 0) * throttle_input * max_propeller_th + allocation_matrix.I()(0, 1) * -yaw_speed_input; // Left thruster input
-	computed_input(1) = allocation_matrix.I()(1, 0) * throttle_input * max_propeller_th + allocation_matrix.I()(1, 1) * -yaw_speed_input; // Right thruster input
+	computed_input(0) = allocation_matrix.I()(0, 0) * throttle_input * max_propeller_th + allocation_matrix.I()(0, 1) * -T_input; // Left thruster input
+	computed_input(1) = allocation_matrix.I()(1, 0) * throttle_input * max_propeller_th + allocation_matrix.I()(1, 1) * -T_input; // Right thruster input
 
 	if (computed_input(0) > 1.0f) {
 		computed_input(0) = 1.0f; // Clamp left thruster input to 1

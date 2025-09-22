@@ -24,6 +24,7 @@
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/vehicle_angular_velocity.h>
 #include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/marine_navigation.h>
 
 using namespace time_literals;
 using matrix::Eulerf;
@@ -57,6 +58,7 @@ private:
 	uORB::Publication<orb_test_s> _orb_test_pub{ORB_ID(orb_test)};
 	uORB::Publication<actuator_servos_s> _actuator_servos_pub{ORB_ID(actuator_servos)};
 	uORB::Publication<actuator_armed_s> _armed_pub{ORB_ID(actuator_armed)};
+	uORB::Publication<marine_navigation_s> _marine_navigation_pub{ORB_ID(marine_navigation)};
 
 	// Subscriptions
 	uORB::SubscriptionCallbackWorkItem _sensor_accel_sub{this, ORB_ID(sensor_accel)};

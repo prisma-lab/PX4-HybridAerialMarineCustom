@@ -86,6 +86,11 @@ publications:
   - topic: /fmu/out/vehicle_trajectory_waypoint_desired
     type: px4_msgs::msg::VehicleTrajectoryWaypoint
 
+  # CUSTOM PRISMA MARINE
+  - topic: /fmu/out/marine_navigation
+    type: px4_msgs::msg::MarineNavigation
+  # END CUSTOM
+
 # Create uORB::Publication
 subscriptions:
   - topic: /fmu/in/register_ext_component_request
