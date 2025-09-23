@@ -4,9 +4,6 @@ float32[4] q_desired	# Desired orientation in quaternion
 float32[4] q_feedback	# Feedback orientation in quaternion (ref frame with z-axis always alligned with the world z-axis)
 float32[4] q_error		# Error orientation in quaternion
 
-float32 thrust_input # Thrust input (0 to 1)
-float32 ang_vel_input # Angular velocity input (-1 to 1)
-
 float32 desired_thrust
 float32 desired_angular_vel
 float32 angular_vel_error

@@ -43,7 +43,7 @@ void MarineNavigation::Run()
 		K_q = _param_marine_kq.get();
 		K_r = _param_marine_kr.get();
 		leak = _param_marine_leak.get();
-		max_propeller_th = _param_marine_max_th.get();
+		max_propeller_speed = _param_marine_max_speed.get();
 		max_yawspeed = _param_marine_max_yaw.get();
 		left_th_x = _param_marine_l_x.get();
 		left_th_y = _param_marine_l_y.get();
@@ -143,9 +143,7 @@ void MarineNavigation::Run()
 		marine_navigation.q_error[1] = quat_error(1);
 		marine_navigation.q_error[2] = quat_error(2);
 		marine_navigation.q_error[3] = quat_error(3);
-		marine_navigation.thrust_input = rc_input.throttle;
-		marine_navigation.ang_vel_input = rc_input.roll;
-		marine_navigation.desired_thrust = rc_input.throttle * max_propeller_th;
+		marine_navigation.desired_thrust = rc_input.throttle * max_propeller_speed;
 		marine_navigation.desired_angular_vel = computeOmegaInput(rc_input.roll);
 		marine_navigation.angular_vel_error = computeOmegaInput(rc_input.roll) - yaw_rate_fb;
 		marine_navigation.omega_desired_z = omega_d(2);
@@ -176,8 +174,6 @@ void MarineNavigation::Run()
 		marine_navigation.q_error[1] = 0;
 		marine_navigation.q_error[2] = 0;
 		marine_navigation.q_error[3] = 0;
-		marine_navigation.thrust_input = 0;
-		marine_navigation.ang_vel_input = 0;
 		marine_navigation.desired_thrust = 0;
 		marine_navigation.desired_angular_vel = 0;
 		marine_navigation.angular_vel_error = 0;
@@ -223,8 +219,8 @@ Vector2f MarineNavigation::getControlInput(const float &throttle_input, const fl
 
 	Vector2f computed_input;
 	// Calculate the control input for each thruster based on the throttle and yaw speed inputs
-	computed_input(0) = allocation_matrix.I()(0, 0) * throttle_input * max_propeller_th + allocation_matrix.I()(0, 1) * -T_input; // Left thruster input
-	computed_input(1) = allocation_matrix.I()(1, 0) * throttle_input * max_propeller_th + allocation_matrix.I()(1, 1) * -T_input; // Right thruster input
+	computed_input(0) = allocation_matrix.I()(0, 0) * throttle_input * max_propeller_speed + allocation_matrix.I()(0, 1) * -T_input; // Left thruster input
+	computed_input(1) = allocation_matrix.I()(1, 0) * throttle_input * max_propeller_speed + allocation_matrix.I()(1, 1) * -T_input; // Right thruster input
 
 	if (computed_input(0) > 1.0f) {
 		computed_input(0) = 1.0f; // Clamp left thruster input to 1

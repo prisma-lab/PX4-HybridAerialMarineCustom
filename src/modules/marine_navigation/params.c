@@ -55,12 +55,12 @@ PARAM_DEFINE_FLOAT(MARINE_LEAK, 1.1f);
  *
  * @unit N
  * @min 0.0
- * @max 100000.0
+ * @max 100.0
  * @decimal 2
  * @increment 0.01
  * @group Marine Navigation 
  */
-PARAM_DEFINE_FLOAT(MARINE_MAX_TH, 10.0f);
+PARAM_DEFINE_FLOAT(MARINE_MAX_SP, 1.0f);
 
 /**
  * Maximum yaw speed

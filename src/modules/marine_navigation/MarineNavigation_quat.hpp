@@ -24,7 +24,9 @@
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/vehicle_angular_velocity.h>
 #include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/marine_navigation.h>
+
 
 using namespace time_literals;
 using matrix::Eulerf;
@@ -67,6 +69,7 @@ private:
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
 	uORB::Subscription _vehicle_angular_velocity_sub{ORB_ID(vehicle_angular_velocity)};
  	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
+	uORB::Subscription _vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
 
 	// Performance counters
 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
@@ -76,6 +79,7 @@ private:
 	vehicle_control_mode_s vehicle_control_mode{};
 	vehicle_angular_velocity_s vehicle_angular_velocity{};
 	vehicle_attitude_s vehicle_attitude{};
+	vehicle_local_position_s vehicle_local_position{};
 
 	// Parameters
 	DEFINE_PARAMETERS(
@@ -85,7 +89,7 @@ private:
 		(ParamFloat<px4::params::MARINE_KQ>) _param_marine_kq,
 		(ParamFloat<px4::params::MARINE_KR>) _param_marine_kr,
 		(ParamFloat<px4::params::MARINE_LEAK>) _param_marine_leak,
-		(ParamFloat<px4::params::MARINE_MAX_TH>) _param_marine_max_th,
+		(ParamFloat<px4::params::MARINE_MAX_SP>) _param_marine_max_speed,
 		(ParamFloat<px4::params::MARINE_MAX_YAW>) _param_marine_max_yaw,
 		(ParamFloat<px4::params::MARINE_L_X>) _param_marine_l_x,
 		(ParamFloat<px4::params::MARINE_L_Y>) _param_marine_l_y,
@@ -98,7 +102,7 @@ private:
 	float K_q{_param_marine_kq.get()};
 	float K_r{_param_marine_kr.get()};
 	float leak{_param_marine_leak.get()};
-	float max_propeller_th{_param_marine_max_th.get()};
+	float max_propeller_speed{_param_marine_max_speed.get()};
 	float max_yawspeed{_param_marine_max_yaw.get()};
 	float left_th_x{_param_marine_l_x.get()};
 	float left_th_y{_param_marine_l_y.get()};
@@ -106,6 +110,7 @@ private:
 	float right_th_y{_param_marine_r_y.get()};
 
 	// Control variables
+	float v_x;
 	float yaw_cont;
 	float yaw_fb_prev;
 	Quatf quat_fb;

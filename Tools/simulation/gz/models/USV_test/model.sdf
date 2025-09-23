@@ -851,17 +851,17 @@
         <mQQ>900.0</mQQ>
         <nR>800.0</nR>
         <nRR>800.0</nRR> -->
-        <xU>0.3</xU>
-        <xUU>0.8</xUU>
-        <yV>0.3</yV>
-        <yVV>0.8</yVV>
-        <zW>0.5</zW>
-        <kP>2</kP>
-        <kPP>2</kPP>
-        <mQ>2</mQ> 
-        <mQQ>2</mQQ>
-        <nR>2</nR>
-        <nRR>2</nRR>
+        <xU>0.7</xU>
+        <xUU>1.2</xUU>
+        <yV>0.7</yV>
+        <yVV>1.2</yVV>
+        <zW>0.7</zW>
+        <kP>2.2</kP>
+        <kPP>2.2</kPP>
+        <mQ>2.2</mQ> 
+        <mQQ>2.2</mQQ>
+        <nR>2.2</nR>
+        <nRR>2.2</nRR>
       </plugin>
 
   </model>
