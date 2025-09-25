@@ -441,6 +441,7 @@ int Commander::custom_command(int argc, char *argv[])
 				// Set the vehicle to marine manual mode only if disarmed
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
 						     PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL);
+				PX4_INFO("Switched to marine manual mode");
 			}
 			else if (!strcmp(argv[1], "prisma:marine_manual") && (drone_armed || !drone_landed)) {
 				// Warning switch is not possible because the drone is flying

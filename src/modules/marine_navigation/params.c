@@ -40,6 +40,28 @@ PARAM_DEFINE_FLOAT(MARINE_KQ, 4.6f);
 PARAM_DEFINE_FLOAT(MARINE_KR, 2.4f);
 
 /**
+ * Proportional gain for thrust computation
+ *
+ * @min 0.0
+ * @max 100.0
+ * @decimal 2
+ * @increment 0.01
+ * @group Marine Navigation 
+ */
+PARAM_DEFINE_FLOAT(MARINE_KT, 10.0f);
+
+/**
+ * Proportional gain for thrust computation in feedforward
+ *
+ * @min 0.0
+ * @max 100.0
+ * @decimal 2
+ * @increment 0.01
+ * @group Marine Navigation
+ */
+PARAM_DEFINE_FLOAT(MARINE_KT_FF, 10.0f);
+
+/**
  * Leak factor for increment of desired quaternion
  *
  * @min 0.0
@@ -49,6 +71,17 @@ PARAM_DEFINE_FLOAT(MARINE_KR, 2.4f);
  * @group Marine Navigation 
  */
 PARAM_DEFINE_FLOAT(MARINE_LEAK, 1.1f);
+
+/**
+ * Quadratic drag coefficient
+ *
+ * @min 0.0
+ * @max 100.0
+ * @decimal 2
+ * @increment 0.01
+ * @group Marine Navigation
+ */
+PARAM_DEFINE_FLOAT(MARINE_DRAG, 1.1f);
 
 /**
  * Maximum linear speed

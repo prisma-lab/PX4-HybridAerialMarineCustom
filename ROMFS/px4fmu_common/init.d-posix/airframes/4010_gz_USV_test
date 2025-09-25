@@ -64,11 +64,14 @@ param set-default  CA_SV_CS1_TRQ_Y 1000
 param set-default MPC_THR_HOVER 0.60
 
 # Marine Navigation Parameters
-param set-default MARINE_KQ 3.8
+param set-default MARINE_KQ 4.0
 param set-default MARINE_KR 1.8
-param set-default MARINE_LEAK 1.1
+param set-default MARINE_KT 3.0
+param set-default MARINE_KT_FF 5.0
+param set-default MARINE_LEAK 1.2
 param set-default MARINE_PROP_C 1.0
-param set-default MARINE_MAX_SP 2.0
+param set-default MARINE_DRAG 1.90
+param set-default MARINE_MAX_SP 1.1
 param set-default MARINE_MAX_YAW 0.22
 param set-default MARINE_L_X -0.53
 param set-default MARINE_L_Y 0.3
