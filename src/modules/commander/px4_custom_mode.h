@@ -86,7 +86,8 @@ enum PX4_CUSTOM_SUB_MODE_POSCTL {
 // CUSTOM PRISMA MARINE
 enum PX4_CUSTOM_SUB_MODE_PRISMA {
 	PX4_CUSTOM_SUB_MODE_PRISMA_1 = 1,
-	PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL
+	PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL,
+	PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE 
 };
 // END CUSTOM
 
@@ -124,6 +125,13 @@ static inline union px4_custom_mode get_px4_custom_mode(uint8_t nav_state)
 	case vehicle_status_s::NAVIGATION_STATE_POSCTL:
 		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_POSCTL;
 		break;
+
+	// CUSTOM PRISMA MARINE
+	case vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE:
+		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_PRISMA;
+		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE;
+		break;
+	// END CUSTOM
 
 	case vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION:
 		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;

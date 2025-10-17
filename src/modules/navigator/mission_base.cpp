@@ -342,7 +342,7 @@ MissionBase::on_active()
 	/* check if landing needs to be aborted */
 	if ((_mission_item.nav_cmd == NAV_CMD_LAND)
 	    && (_navigator->abort_landing())) {
-
+			PX4_INFO("Landing aborted");
 		do_abort_landing();
 	}
 
@@ -624,7 +624,6 @@ void MissionBase::handleLanding(WorkItemType &new_work_item_type, mission_item_s
 
 			if (_mission_item.land_precision > 0 && _mission_item.land_precision < 3) {
 				new_work_item_type = WorkItemType::WORK_ITEM_TYPE_PRECISION_LAND;
-
 				startPrecLand(_mission_item.land_precision);
 			}
 		}

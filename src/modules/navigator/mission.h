@@ -51,6 +51,11 @@
 #include "mission_base.h"
 #include "navigation.h"
 
+// PRISMA CUSTOM MARINE
+#include <lib/parameters/param.h>
+#include <commander/px4_custom_mode.h>
+// END CUSTOM
+
 class Navigator;
 
 class Mission : public MissionBase
@@ -96,4 +101,17 @@ private:
 				  size_t &num_found_items);
 
 	bool _need_mission_save{false};
+
+	// CUSTOM PRISMA MARINE
+	bool curr_has_pos{false};
+	bool curr_waypoint_is_marine{false};
+	float _nav_mar_tkof_alt{5.0f}; // Marine takeoff altitude
+	float _nav_mar_alt_thr{1.0f}; // Marine altitude threshold
+
+	void do_set_mode(uint8_t main_mode, uint8_t sub_mode);
+	void do_set_mode_prisma_auto_marine();
+	void do_set_mode_auto_takeoff();
+	//void do_set_mode_auto_land();
+	void do_set_mode_auto_mission();
+	// END CUSTOM
 };

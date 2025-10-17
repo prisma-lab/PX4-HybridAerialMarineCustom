@@ -208,6 +208,39 @@ void Mission::setActiveMissionItems()
 		}
 	}
 
+	// CUSTOM PRISMA MARINE
+
+	curr_has_pos = item_contains_position(_mission_item);
+	curr_waypoint_is_marine = curr_has_pos && PX4_ISFINITE(_mission_item.altitude) && (_mission_item.altitude <= _nav_mar_alt_thr) 
+				&& (_mission_item.nav_cmd != NAV_CMD_LAND) && (_mission_item.nav_cmd != NAV_CMD_VTOL_LAND);
+
+	if (curr_waypoint_is_marine && this->_marine_phase == MarinePhase::MARINE_IDLE) {
+		_marine_phase = MarinePhase::MARINE_APPROACH;
+		// Current item is switched to land to trigger the handleLanding(...)
+		_mission_item.nav_cmd = NAV_CMD_LAND; 
+	} else if (this->_marine_phase == MarinePhase::MARINE_APPROACH) {
+		// This is necessary because handleLanding sets another item but not with the landing command, local mods affect only the current cycle
+		_marine_phase = MarinePhase::MARINE_ON_WATER;
+		_mission_item.nav_cmd = NAV_CMD_LAND;   
+	} else if (_marine_phase == MarinePhase::MARINE_ON_WATER && curr_waypoint_is_marine) {
+		// TO DO: marine navigation while in marine mode
+	} else if (this->_marine_phase == MarinePhase::MARINE_ON_WATER && !curr_waypoint_is_marine) {
+		PX4_INFO("Taking off from water to air");
+		this->_marine_phase = MarinePhase::MARINE_IDLE;
+		_mission_item.nav_cmd = NAV_CMD_TAKEOFF;
+
+		position_setpoint_triplet_s *prisma_sp_triplet = _navigator->get_position_setpoint_triplet();
+		if (prisma_sp_triplet->current.valid
+			&& prisma_sp_triplet->current.type == position_setpoint_s::SETPOINT_TYPE_POSITION) {
+			_mission_init_climb_altitude_amsl = prisma_sp_triplet->current.alt + _nav_mar_tkof_alt;
+		} else {
+			_mission_init_climb_altitude_amsl = _global_pos_sub.get().alt + _nav_mar_tkof_alt;
+		}
+	}
+	// END CUSTOM
+
+	// Print _nav_mar_tkof_alt for debugging
+	PX4_INFO("Marine takeoff altitude: %f", (double)_nav_mar_tkof_alt);
 	/*********************************** handle mission item *********************************************/
 	WorkItemType new_work_item_type = WorkItemType::WORK_ITEM_TYPE_DEFAULT;
 
@@ -300,7 +333,9 @@ void Mission::handleTakeoff(WorkItemType &new_work_item_type, mission_item_s nex
 	/* in fixed-wing this whole block will be ignored and a takeoff item is always propagated */
 	if (PX4_ISFINITE(_mission_init_climb_altitude_amsl) &&
 	    _work_item_type == WorkItemType::WORK_ITEM_TYPE_DEFAULT) {
-
+		PX4_INFO("stuff");
+		// PPrint init climb altitude
+		PX4_INFO("Init climb altitude: %f", (double)_mission_init_climb_altitude_amsl);
 		new_work_item_type = WorkItemType::WORK_ITEM_TYPE_CLIMB;
 
 		/* use current mission item as next position item */
@@ -312,7 +347,8 @@ void Mission::handleTakeoff(WorkItemType &new_work_item_type, mission_item_s nex
 				 (double)(_mission_init_climb_altitude_amsl - _navigator->get_home_position()->alt));
 		events::send<float>(events::ID("mission_climb_before_start"), events::Log::Info,
 				    "Climb to {1:.1m_v} above home", _mission_init_climb_altitude_amsl - _navigator->get_home_position()->alt);
-
+		// PRINT navigator get home position
+		PX4_INFO("Home pos alt: %f", (double)_navigator->get_home_position()->alt);
 		if (_land_detected_sub.get().landed) {
 			_mission_item.nav_cmd = NAV_CMD_TAKEOFF;
 
@@ -325,7 +361,8 @@ void Mission::handleTakeoff(WorkItemType &new_work_item_type, mission_item_s nex
 		/* hold heading for takeoff items */
 		_mission_item.yaw = _navigator->get_local_position()->heading;
 		_mission_item.altitude = _mission_init_climb_altitude_amsl;
-		_mission_item.altitude_is_relative = false;
+		PX4_INFO("Takeoff altitude: %f", (double)_mission_item.altitude);
+		_mission_item.altitude_is_relative = false; 
 		_mission_item.autocontinue = true;
 		_mission_item.time_inside = 0.0f;
 
@@ -508,3 +545,43 @@ Mission::save_mission_state()
 		}
 	}
 }
+
+// CUSTOM PRISMA MARINE
+void Mission::do_set_mode(uint8_t main_mode, uint8_t sub_mode)
+{
+	mission_item_s cmd{};
+	cmd.nav_cmd   = NAV_CMD_DO_SET_MODE;   // requires NAV_CMD_DO_SET_MODE in navigation.h
+	cmd.params[0] = 1.f;                   // MAV_MODE_FLAG_CUSTOM_MODE_ENABLED
+	cmd.params[1] = static_cast<float>(main_mode);
+	cmd.params[2] = static_cast<float>(sub_mode);
+	issue_command(cmd);                    // MissionBlock → vehicle_command
+}
+
+void Mission::do_set_mode_prisma_auto_marine()
+{
+	do_set_mode(PX4_CUSTOM_MAIN_MODE_PRISMA, PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE);
+}
+
+void Mission::do_set_mode_auto_takeoff()
+{
+	int h = param_find("NAV_MAR_TKOF_ALT");
+	float tkof_alt = 0.f;
+	if (h >= 0) { (void)param_get(h, &tkof_alt); }
+	if (tkof_alt > 0.0f) {
+		// (facoltativo) chiedi AUTO.TAKEOFF prima di rientrare in AUTO.MISSION
+		do_set_mode(PX4_CUSTOM_MAIN_MODE_AUTO, PX4_CUSTOM_SUB_MODE_AUTO_TAKEOFF);
+	}
+}
+
+// void Mission::do_set_mode_auto_land()
+// {
+// 	PX4_INFO("Landing on water");
+// 	do_set_mode(PX4_CUSTOM_MAIN_MODE_AUTO, PX4_CUSTOM_SUB_MODE_AUTO_LAND);
+// 	_marine_phase = MarinePhase::MARINE_LANDING_ISSUED;
+// }
+
+void Mission::do_set_mode_auto_mission()
+{
+	do_set_mode(PX4_CUSTOM_MAIN_MODE_AUTO, PX4_CUSTOM_SUB_MODE_AUTO_MISSION);
+}
+// END CUSTOM

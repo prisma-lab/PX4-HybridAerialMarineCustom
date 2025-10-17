@@ -96,6 +96,14 @@ protected:
 		MISSION_TYPE_MISSION
 	} _mission_type{MissionType::MISSION_TYPE_NONE};
 
+	// CUSTOM PRISMA MARINE
+	enum class MarinePhase : uint8_t { // Manage marine transitions and phases
+		MARINE_IDLE = 0,
+		MARINE_APPROACH = 1,
+		MARINE_ON_WATER = 2,
+	} _marine_phase{MarinePhase::MARINE_IDLE};
+	// END CUSTOM
+
 	/**
 	 * @brief Get the Previous Mission Position Items
 	 *
@@ -457,7 +465,11 @@ private:
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::MIS_DIST_1WP>) _param_mis_dist_1wp,
-		(ParamInt<px4::params::MIS_MNT_YAW_CTL>) _param_mis_mnt_yaw_ctl
+		(ParamInt<px4::params::MIS_MNT_YAW_CTL>) _param_mis_mnt_yaw_ctl,
+		// CUSTOM PRISMA MARINE
+		(ParamFloat<px4::params::NAV_MAR_ALT_THR>)   _param_mar_alt_thr,	// altitude threshold to consider a waypoint as marine
+		(ParamFloat<px4::params::NAV_MAR_TKOF_ALT>)   _param_mar_tkoff_alt	// takeoff altitude for marine
+		// END CUSTOM
 	)
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};

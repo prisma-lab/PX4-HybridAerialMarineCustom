@@ -238,6 +238,7 @@ set(msg_files
 	YawEstimatorStatus.msg
 	## CUSTOM PRISMA MARINE
 	MarineNavigation.msg	
+	VehicleMarineSetpoint.msg
 	## END-CUSTOM
 )
 list(SORT msg_files)

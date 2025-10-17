@@ -154,3 +154,30 @@ PARAM_DEFINE_FLOAT(MIS_PD_TO, 5.0f);
  * @group Mission
  */
 PARAM_DEFINE_INT32(MIS_LND_ABRT_ALT, 30);
+
+/**
+ * Marine leg altitude threshold (absolute |alt| in meters).
+ * 
+ * If both current and next waypoints have |alt| <= NAV_MAR_ALT_THR
+ * the mission switches to PRISMA_AUTO_MARINE.
+ *
+ * @unit m
+ * @min 0
+ * @decimal 2
+ * @increment 0.1
+ * @group Mission
+ */
+PARAM_DEFINE_FLOAT(NAV_MAR_ALT_THR, 0.90f);
+
+/**
+ * Auto takeoff altitude when leaving marine leg.
+ * 
+ * If > 0, a DO_SET_MODE to AUTO TAKEOFF is issued before AUTO MISSION.
+ *
+ * @unit m
+ * @min 0
+ * @decimal 1
+ * @increment 0.1
+ * @group Mission
+ */
+PARAM_DEFINE_FLOAT(NAV_MAR_TKOF_ALT, 10.0f);

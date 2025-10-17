@@ -50,7 +50,11 @@ set(NAVIGATOR_SOURCES
 	land.cpp
 	precland.cpp
 	mission_feasibility_checker.cpp
-	geofence.cpp)
+	geofence.cpp
+	# CUISTOM PRISMA MARINE
+	prisma_marine.cpp
+	# END CUSTOM
+	)
 
 if(CONFIG_MODE_NAVIGATOR_VTOL_TAKEOFF)
 	set(NAVIGATOR_SOURCES

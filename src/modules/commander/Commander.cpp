@@ -906,8 +906,12 @@ Commander::handle_command(const vehicle_command_s &cmd)
 							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_PRISMA_1;
 							break;
 						case PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL:
-							//PX4_INFO("Detected desired PRISMA1 sub state");
+							//PX4_INFO("Detected desired PRISMA manual sub state");
 							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL;
+							break;
+						case PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE:
+							//PX4_INFO("Detected desired PRISMA auto sub state");
+							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE;
 							break;
 						}
 					}

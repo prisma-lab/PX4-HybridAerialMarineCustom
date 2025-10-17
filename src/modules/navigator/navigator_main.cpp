@@ -80,7 +80,10 @@ Navigator::Navigator() :
 #endif //CONFIG_MODE_NAVIGATOR_VTOL_TAKEOFF
 	_land(this),
 	_precland(this),
-	_rtl(this)
+	_rtl(this),
+	// CUSTOM PRISMA MARINE
+	_marine(this)
+	// END CUSTOM
 {
 	/* Create a list of our possible navigation types */
 	_navigation_mode_array[0] = &_mission;
@@ -89,9 +92,12 @@ Navigator::Navigator() :
 	_navigation_mode_array[3] = &_takeoff;
 	_navigation_mode_array[4] = &_land;
 	_navigation_mode_array[5] = &_precland;
+// CUSTOM PRISMA MARINE
+	_navigation_mode_array[6] = &_marine;
 #if CONFIG_MODE_NAVIGATOR_VTOL_TAKEOFF
-	_navigation_mode_array[6] = &_vtol_takeoff;
+	_navigation_mode_array[7] = &_vtol_takeoff;
 #endif //CONFIG_MODE_NAVIGATOR_VTOL_TAKEOFF
+// END CUSTOM
 
 	/* iterate through navigation modes and initialize _mission_item for each */
 	for (unsigned int i = 0; i < NAVIGATOR_MODE_ARRAY_SIZE; i++) {
@@ -753,6 +759,15 @@ void Navigator::run()
 		NavigatorMode *navigation_mode_new{nullptr};
 
 		switch (_vstatus.nav_state) {
+		// CUSTOM PRISMA MARINE
+		case vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE: 
+			_pos_sp_triplet_published_invalid_once = false;
+
+			navigation_mode_new = &_marine;
+
+			break;
+		// END CUSTOM
+		
 		case vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION:
 			_pos_sp_triplet_published_invalid_once = false;
 
@@ -814,8 +829,8 @@ void Navigator::run()
 			_precland.set_mode(PrecLandMode::Required);
 			break;
 
-		// CUSTOM
-		case vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL:
+		// CUSTOM PRISMA MARINE
+		case vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL: // Navigator does nothing
 		// END CUSTOM
 		case vehicle_status_s::NAVIGATION_STATE_MANUAL:
 		case vehicle_status_s::NAVIGATION_STATE_ACRO:
