@@ -89,6 +89,7 @@ private:
 	vehicle_angular_velocity_s vehicle_angular_velocity{};
 	vehicle_attitude_s vehicle_attitude{};
 	vehicle_local_position_s vehicle_local_position{};
+	marine_navigation_s marine_navigation{}; // Marine navigation topic instance
 
 	// Parameters
 	DEFINE_PARAMETERS(
@@ -136,4 +137,6 @@ private:
 	bool module_initialization{false}; // Flag to check if integral is initialized
 	float last_timestamp{0};
 	Vector2f control_input{0, 0}; // Control inputs for the propellers
+
+	bool in_marine_mode{false};
 };

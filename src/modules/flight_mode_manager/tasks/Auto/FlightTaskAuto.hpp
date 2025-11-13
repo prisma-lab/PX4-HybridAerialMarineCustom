@@ -71,7 +71,10 @@ enum class WaypointType : int {
 	loiter = position_setpoint_s::SETPOINT_TYPE_LOITER,
 	takeoff = position_setpoint_s::SETPOINT_TYPE_TAKEOFF,
 	land = position_setpoint_s::SETPOINT_TYPE_LAND,
-	idle = position_setpoint_s::SETPOINT_TYPE_IDLE
+	idle = position_setpoint_s::SETPOINT_TYPE_IDLE,
+	// CUSTOM PRISMA MARINE
+	prisma_nav = position_setpoint_s::SETPOINT_TYPE_PRISMA_NAV,
+	// END CUSTOM
 };
 
 enum class State {

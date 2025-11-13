@@ -108,10 +108,8 @@ private:
 	float _nav_mar_tkof_alt{5.0f}; // Marine takeoff altitude
 	float _nav_mar_alt_thr{1.0f}; // Marine altitude threshold
 
-	void do_set_mode(uint8_t main_mode, uint8_t sub_mode);
-	void do_set_mode_prisma_auto_marine();
-	void do_set_mode_auto_takeoff();
-	//void do_set_mode_auto_land();
-	void do_set_mode_auto_mission();
+	// void do_set_mode(uint8_t main_mode, uint8_t sub_mode);
+	// void do_set_mode_prisma_auto_marine();
+	// void do_set_mode_auto_mission();
 	// END CUSTOM
 };

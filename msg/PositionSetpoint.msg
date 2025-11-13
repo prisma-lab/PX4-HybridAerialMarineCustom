@@ -8,6 +8,9 @@ uint8 SETPOINT_TYPE_LOITER=2	# loiter setpoint
 uint8 SETPOINT_TYPE_TAKEOFF=3	# takeoff setpoint
 uint8 SETPOINT_TYPE_LAND=4	# land setpoint, altitude must be ignored, descend until landing
 uint8 SETPOINT_TYPE_IDLE=5	# do nothing, switch off motors or keep at idle speed (MC)
+# CUSTOM PRISMA MARINE AUTO
+uint8 SETPOINT_TYPE_PRISMA_MARINE_AUTO=6  # Prisma marine auto setpoint
+# END CUSTOM
 
 uint8 LOITER_TYPE_ORBIT=0 	# Circular pattern
 uint8 LOITER_TYPE_FIGUREEIGHT=1 # Pattern resembling an 8

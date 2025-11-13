@@ -572,6 +572,8 @@ int8_t ManualControl::navStateFromParam(int32_t param_value)
 		// CUSTOM PRISMA MARINE
 		case 32: return vehicle_status_s::NAVIGATION_STATE_PRISMA_1;
 		case 33: return vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL;
+		case 35: return vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS;
+		case 36: return vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF;
 		// END CUSTOM
 
 		case 100: return vehicle_status_s::NAVIGATION_STATE_EXTERNAL1;

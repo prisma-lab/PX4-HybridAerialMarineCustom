@@ -65,7 +65,14 @@ void MarineNavigation::Run()
 		_vehicle_control_mode_sub.copy(&vehicle_control_mode);
 	}
 
-	if (_manual_control_sub.update(&rc_input) && vehicle_control_mode.flag_control_prisma_marine_manual_enabled) {
+	if (_manual_control_sub.updated()) {
+		_manual_control_sub.copy(&rc_input);
+	}
+
+	in_marine_mode = (vehicle_control_mode.flag_control_prisma_marine_manual_enabled || vehicle_control_mode.flag_control_prisma_marine_manual_ts_enabled || 
+		vehicle_control_mode.flag_control_prisma_marine_manual_ff_enabled);
+
+	if (vehicle_control_mode.flag_control_prisma_marine_manual_enabled) {
 		
 		Vector3f rpy;
 		// Receiving feedback and normalizimg between -1 and 1
@@ -146,14 +153,14 @@ void MarineNavigation::Run()
 		control_input = getControlInput(force_input, torque_input);
 
 		// Publish on actuator_servos topic even if not armed
-		actuator_servos_s actuator_servos{};
-		actuator_servos.timestamp = hrt_absolute_time();
-		actuator_servos.control[0] = control_input(0); // Left propeller control input
-		actuator_servos.control[1] = control_input(1); // Right propeller
-		_actuator_servos_pub.publish(actuator_servos);	
+		// actuator_servos_s actuator_servos{};
+		// actuator_servos.timestamp = hrt_absolute_time();
+		// actuator_servos.control[0] = control_input(0); // Left propeller control input
+		// actuator_servos.control[1] = control_input(1); // Right propeller
+		// _actuator_servos_pub.publish(actuator_servos);	
 
 		// Publish on marine_navigation topic
-		marine_navigation_s marine_navigation{};
+		//marine_navigation_s marine_navigation{};
 		marine_navigation.timestamp = hrt_absolute_time();
 		marine_navigation.q_desired[0] = quat_d(0);
 		marine_navigation.q_desired[1] = quat_d(1);
@@ -176,7 +183,7 @@ void MarineNavigation::Run()
 		marine_navigation.torque_input = torque_input;
 		marine_navigation.angular_error = 2.0f * acosf(fabsf(quat_error(0)));
 
-		_marine_navigation_pub.publish(marine_navigation);
+		//_marine_navigation_pub.publish(marine_navigation);
 
 		// PX4_INFO printing
 		PX4_INFO("Y fb: %.2f, YR fb: %.2f, Vx fb: %.2f", (double)rpy(2), (double)yaw_rate_fb, (double)v_x);
@@ -190,15 +197,34 @@ void MarineNavigation::Run()
 		PX4_INFO("Throttle: %.2f, Roll input : %.2f, Force input: %.2f, Torque Input: %.2f", (double)rc_input.throttle, (double)rc_input.roll, (double)force_input, (double)torque_input);
 		PX4_INFO("Control Input Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
 	}
-	// If NOT in manual control mode, stop the servos
-	else if(!vehicle_control_mode.flag_control_prisma_marine_manual_enabled) {
-		actuator_servos_s actuator_servos{};
-		actuator_servos.timestamp = hrt_absolute_time();
-		actuator_servos.control[0] = 0; 
-		actuator_servos.control[1] = 0; 
-		_actuator_servos_pub.publish(actuator_servos);
+	else if (vehicle_control_mode.flag_control_prisma_marine_manual_ts_enabled) {
+		// Similar implementation for TS control mode can be added here
+
+		float thrust = rc_input.throttle;
+		float steering = rc_input.roll;
 		
-		marine_navigation_s marine_navigation{};
+		if (fabs(thrust) < 0.09f) thrust = 0.0f;
+		if (fabs(steering) < 0.09f) steering = 0.0f;
+
+		if (fabs(steering) < 0.01f)
+		{
+			control_input(0) = thrust;
+			control_input(1) = thrust;
+		}
+		else if (steering > 0.01f)
+		{
+			control_input(0) = thrust;
+			control_input(1) = -(thrust +1)*steering +1;
+		} else {
+			control_input(0) = (thrust +1)*steering +1;
+			control_input(1) = thrust;
+		}
+
+		// Print joystick input and controls
+		PX4_INFO("Joystick Input - Throttle: %.2f, Roll: %.2f", (double)rc_input.throttle, (double)rc_input.roll);
+		PX4_INFO("Control Input - Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
+
+		//marine_navigation_s marine_navigation{};
 		marine_navigation.timestamp = hrt_absolute_time();
 		marine_navigation.q_desired[0] = 0;
 		marine_navigation.q_desired[1] = 0;
@@ -221,13 +247,92 @@ void MarineNavigation::Run()
 		marine_navigation.torque_input = 0;
 		marine_navigation.angular_error = 0;
 
-		_marine_navigation_pub.publish(marine_navigation);
+		// _marine_navigation_pub.publish(marine_navigation);
 
 		// Reset variables
 		if (module_initialization) {
 			module_initialization = false; // Reset initialization flag
 		}
 	}
+	else if (vehicle_control_mode.flag_control_prisma_marine_manual_ff_enabled) {
+
+		if(fabs(rc_input.throttle) < 0.09f) control_input(0) = 0.0f;
+		if(fabs(rc_input.pitch) < 0.09f) control_input(1) = 0.0f;
+		else control_input = Vector2f(rc_input.throttle, rc_input.pitch);
+		
+		PX4_INFO("Control Input - Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
+
+		marine_navigation.timestamp = hrt_absolute_time();
+		marine_navigation.q_desired[0] = 0;
+		marine_navigation.q_desired[1] = 0;
+		marine_navigation.q_desired[2] = 0;
+		marine_navigation.q_desired[3] = 0;
+		marine_navigation.q_feedback[0] = 0;
+		marine_navigation.q_feedback[1] = 0;
+		marine_navigation.q_feedback[2] = 0;
+		marine_navigation.q_feedback[3] = 0;
+		marine_navigation.q_error[0] = 0;
+		marine_navigation.q_error[1] = 0;
+		marine_navigation.q_error[2] = 0;
+		marine_navigation.q_error[3] = 0;
+		marine_navigation.desired_speed = 0;
+		marine_navigation.desired_angular_vel = 0;
+		marine_navigation.speed_error = 0;
+		marine_navigation.angular_vel_error = 0;
+		marine_navigation.omega_desired_z = 0;
+		marine_navigation.force_input = 0;
+		marine_navigation.torque_input = 0;
+		marine_navigation.angular_error = 0;
+	}
+	// If NOT in manual control mode, stop the servos
+	else if(!in_marine_mode) {
+		// actuator_servos_s actuator_servos{};
+		// actuator_servos.timestamp = hrt_absolute_time();
+		// actuator_servos.control[0] = 0; 
+		// actuator_servos.control[1] = 0; 
+		// _actuator_servos_pub.publish(actuator_servos);
+
+		control_input = Vector2f(0.0f, 0.0f);
+		
+		//marine_navigation_s marine_navigation{};
+		marine_navigation.timestamp = hrt_absolute_time();
+		marine_navigation.q_desired[0] = 0;
+		marine_navigation.q_desired[1] = 0;
+		marine_navigation.q_desired[2] = 0;
+		marine_navigation.q_desired[3] = 0;
+		marine_navigation.q_feedback[0] = 0;
+		marine_navigation.q_feedback[1] = 0;
+		marine_navigation.q_feedback[2] = 0;
+		marine_navigation.q_feedback[3] = 0;
+		marine_navigation.q_error[0] = 0;
+		marine_navigation.q_error[1] = 0;
+		marine_navigation.q_error[2] = 0;
+		marine_navigation.q_error[3] = 0;
+		marine_navigation.desired_speed = 0;
+		marine_navigation.desired_angular_vel = 0;
+		marine_navigation.speed_error = 0;
+		marine_navigation.angular_vel_error = 0;
+		marine_navigation.omega_desired_z = 0;
+		marine_navigation.force_input = 0;
+		marine_navigation.torque_input = 0;
+		marine_navigation.angular_error = 0;
+
+		//_marine_navigation_pub.publish(marine_navigation);
+
+		// Reset variables
+		if (module_initialization) {
+			module_initialization = false; // Reset initialization flag
+		}
+	}
+
+	// Publish on actuator_servos topic even if not armed
+	actuator_servos_s actuator_servos{};
+	actuator_servos.timestamp = hrt_absolute_time();
+	actuator_servos.control[0] = control_input(0); // Left propeller control input
+	actuator_servos.control[1] = control_input(1); // Right propeller
+	_actuator_servos_pub.publish(actuator_servos);	
+
+	_marine_navigation_pub.publish(marine_navigation);
 
 	perf_end(_loop_perf);
 }

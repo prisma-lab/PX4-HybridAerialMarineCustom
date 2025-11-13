@@ -74,6 +74,30 @@ void getVehicleControlMode(uint8_t nav_state, uint8_t vehicle_type,
 		vehicle_control_mode.flag_control_attitude_enabled = false;
 		vehicle_control_mode.flag_control_allocation_enabled = false;
 		break;
+
+	case vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS:
+		vehicle_control_mode.flag_control_prisma_marine_manual_ts_enabled = true;
+		
+		vehicle_control_mode.flag_control_position_enabled = false;
+		vehicle_control_mode.flag_control_velocity_enabled = false;
+		vehicle_control_mode.flag_control_altitude_enabled = false;
+		vehicle_control_mode.flag_control_manual_enabled = false;
+		vehicle_control_mode.flag_control_rates_enabled = false;
+		vehicle_control_mode.flag_control_attitude_enabled = false;
+		vehicle_control_mode.flag_control_allocation_enabled = false;
+		break;
+
+	case vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF:
+		vehicle_control_mode.flag_control_prisma_marine_manual_ff_enabled = true;
+
+		vehicle_control_mode.flag_control_position_enabled = false;
+		vehicle_control_mode.flag_control_velocity_enabled = false;
+		vehicle_control_mode.flag_control_altitude_enabled = false;
+		vehicle_control_mode.flag_control_manual_enabled = false;
+		vehicle_control_mode.flag_control_rates_enabled = false;
+		vehicle_control_mode.flag_control_attitude_enabled = false;
+		vehicle_control_mode.flag_control_allocation_enabled = false;
+		break;
 	// END CUSTOM
 
 	case vehicle_status_s::NAVIGATION_STATE_MANUAL:
@@ -126,6 +150,21 @@ void getVehicleControlMode(uint8_t nav_state, uint8_t vehicle_type,
 		vehicle_control_mode.flag_control_velocity_enabled = true;
 		vehicle_control_mode.flag_control_allocation_enabled = true;
 		break;
+
+	// CUSTOM PRISMA MARINE AUTO
+	case vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE:
+		vehicle_control_mode.flag_control_auto_enabled = true;
+		vehicle_control_mode.flag_control_prisma_auto_marine_enabled = true;
+
+		vehicle_control_mode.flag_control_rates_enabled = false;
+		vehicle_control_mode.flag_control_attitude_enabled = false;
+		vehicle_control_mode.flag_control_altitude_enabled = false;
+		vehicle_control_mode.flag_control_climb_rate_enabled = false;
+		vehicle_control_mode.flag_control_position_enabled = false;
+		vehicle_control_mode.flag_control_velocity_enabled = false;
+		vehicle_control_mode.flag_control_allocation_enabled = false;
+		break;
+	// END CUSTOM
 
 	case vehicle_status_s::NAVIGATION_STATE_ACRO:
 		vehicle_control_mode.flag_control_manual_enabled = true;

@@ -641,7 +641,10 @@ MissionBlock::item_contains_position(const mission_item_s &item)
 	       item.nav_cmd == NAV_CMD_TAKEOFF ||
 	       item.nav_cmd == NAV_CMD_LOITER_TO_ALT ||
 	       item.nav_cmd == NAV_CMD_VTOL_TAKEOFF ||
-	       item.nav_cmd == NAV_CMD_VTOL_LAND;
+	       item.nav_cmd == NAV_CMD_VTOL_LAND ||
+		   // CUSTOM PRISMA MARINE AUTO
+		   item.nav_cmd == NAV_CMD_PRISMA_NAV;
+		   // END CUSTOM
 }
 
 bool
@@ -689,6 +692,12 @@ MissionBlock::mission_item_to_position_setpoint(const mission_item_s &item, posi
 	sp->gliding_enabled = (_navigator->get_cruising_throttle() < FLT_EPSILON);
 
 	switch (item.nav_cmd) {
+
+	// CUSTOM PRISMA MARINE AUTO
+	case NAV_CMD_PRISMA_NAV:
+		sp->type = position_setpoint_s::SETPOINT_TYPE_PRISMA_MARINE_AUTO;
+		break;
+	// END CUSTOM
 	case NAV_CMD_IDLE:
 		sp->type = position_setpoint_s::SETPOINT_TYPE_IDLE;
 		break;

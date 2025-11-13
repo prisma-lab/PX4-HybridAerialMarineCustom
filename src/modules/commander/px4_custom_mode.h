@@ -76,6 +76,9 @@ enum PX4_CUSTOM_SUB_MODE_AUTO {
 	PX4_CUSTOM_SUB_MODE_EXTERNAL6,
 	PX4_CUSTOM_SUB_MODE_EXTERNAL7,
 	PX4_CUSTOM_SUB_MODE_EXTERNAL8,
+	// CUSTOM PRISMA MARINE AUTO
+	PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE
+	// END CUSTOM
 };
 
 enum PX4_CUSTOM_SUB_MODE_POSCTL {
@@ -87,7 +90,9 @@ enum PX4_CUSTOM_SUB_MODE_POSCTL {
 enum PX4_CUSTOM_SUB_MODE_PRISMA {
 	PX4_CUSTOM_SUB_MODE_PRISMA_1 = 1,
 	PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL,
-	PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE 
+	//PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE,
+	PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL_TS,  // manual mode with feed forward control of thrust and steering
+	PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL_FF   // manual mode with feed forward control over thrust
 };
 // END CUSTOM
 
@@ -126,9 +131,9 @@ static inline union px4_custom_mode get_px4_custom_mode(uint8_t nav_state)
 		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_POSCTL;
 		break;
 
-	// CUSTOM PRISMA MARINE
+	// CUSTOM PRISMA MARINE AUTO
 	case vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE:
-		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_PRISMA;
+		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
 		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE;
 		break;
 	// END CUSTOM
@@ -247,6 +252,16 @@ static inline union px4_custom_mode get_px4_custom_mode(uint8_t nav_state)
 	case vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL:
 		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_PRISMA;
 		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL;
+		break;
+
+	case vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS:
+		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_PRISMA;
+		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL_TS;
+		break;
+
+	case vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF:
+		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_PRISMA;
+		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL_FF;
 		break;
 	// END CUSTOM
 	}

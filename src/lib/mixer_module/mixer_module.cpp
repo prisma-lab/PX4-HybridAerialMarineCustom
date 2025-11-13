@@ -473,7 +473,10 @@ MixingOutput::limitAndUpdateOutputs(float outputs[MAX_ACTUATORS], bool has_updat
 	// CUSTOM PRISMA MARINE
 		if (_vehicle_status_sub.updated()) {
 			_vehicle_status_sub.copy(&_vehicle_status);
-			in_marine_mode = (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL);
+			in_marine_mode = (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL ||
+							  _vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE ||
+							  _vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS ||
+							  _vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF);
 		}
 	// END CUSTOM
 

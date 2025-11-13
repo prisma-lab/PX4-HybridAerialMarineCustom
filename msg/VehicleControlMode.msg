@@ -16,7 +16,10 @@ bool flag_control_climb_rate_enabled		# true if climb rate is controlled
 bool flag_control_termination_enabled		# true if flighttermination is enabled
 bool flag_control_allocation_enabled		# true if control allocation is enabled
 ## CUSTOM
-bool flag_control_prisma_marine_manual_enabled		# true if Prisma manual control is enabled        
+bool flag_control_prisma_marine_manual_enabled		# true if Prisma manual control is enabled
+bool flag_control_prisma_marine_manual_ts_enabled		# true if Prisma manual thrust steering is enabled
+bool flag_control_prisma_marine_manual_ff_enabled        # true if Prisma manual feedforward is enabled
+bool flag_control_prisma_auto_marine_enabled              # true if Prisma auto marine control is enabled
 ## END CUSTOM
 
 # TODO: use dedicated topic for external requests

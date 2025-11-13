@@ -200,6 +200,8 @@ void FlightModeManager::start_flight_task()
 	// CUSTOM PRISMA MARINE
 	if ((_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_POSCTL) 
 		|| _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL
+		|| _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS
+		|| _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF
 		|| task_failure) {
 	// END CUSTOM
 		found_some_task = true;

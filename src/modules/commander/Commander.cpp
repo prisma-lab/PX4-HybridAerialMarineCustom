@@ -407,7 +407,11 @@ int Commander::custom_command(int argc, char *argv[])
 			} else if (!strcmp(argv[1], "auto:rtl")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_AUTO,
 						     PX4_CUSTOM_SUB_MODE_AUTO_RTL);
-
+			// CUSTOM PRISMA MARINE AUTO
+			} else if (!strcmp(argv[1], "auto:prisma_marine")) {
+				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_AUTO,
+						     PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE);
+			// END CUSTOM
 			} else if (!strcmp(argv[1], "acro")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_ACRO);
 
@@ -442,8 +446,17 @@ int Commander::custom_command(int argc, char *argv[])
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
 						     PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL);
 				PX4_INFO("Switched to marine manual mode");
-			}
-			else if (!strcmp(argv[1], "prisma:marine_manual") && (drone_armed || !drone_landed)) {
+			} else if (!strcmp(argv[1], "prisma:marine_manual_ts") && !drone_armed && drone_landed) {
+				// Set the vehicle to marine manual mode with time sync only if disarmed
+				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
+						     PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL_TS);
+				PX4_INFO("Switched to marine manual mode with ff thrust and steering control");
+			} else if (!strcmp(argv[1], "prisma:marine_manual_ff") && !drone_armed && drone_landed) {
+				// Set the vehicle to marine manual mode with time sync only if disarmed
+				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
+						     PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL_FF);
+				PX4_INFO("Switched to marine manual mode feedforward over thrust");
+			} else if ((!strcmp(argv[1], "prisma:marine_manual") || !strcmp(argv[1], "prisma:marine_manual_ts") || !strcmp(argv[1], "prisma:marine_manual_ff")) && (drone_armed || !drone_landed)) {
 				// Warning switch is not possible because the drone is flying
 				PX4_ERR("Cannot switch to marine manual mode while the vehicle is armed or flying.");
 			}  
@@ -819,7 +832,16 @@ Commander::handle_command(const vehicle_command_s &cmd)
 			transition_result_t main_ret = TRANSITION_NOT_CHANGED;
 
 			// CUSTOM PRISMA MARINE
-			if (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL && isArmed()) {
+
+			uORB::SubscriptionData<actuator_armed_s> actuator_armed_sub{ORB_ID(actuator_armed)};
+			bool drone_armed = false;
+			if (actuator_armed_sub.updated()) {
+				actuator_armed_s actuator_armed{};
+				actuator_armed_sub.copy(&actuator_armed);
+				drone_armed = actuator_armed.armed;
+			}
+
+			if ((_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL || _vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS || _vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF) && drone_armed) {
         		mavlink_log_critical(&_mavlink_log_pub, "Mode switch denied: Marine mode locked while armed\t");
         		events::send(events::ID("commander_prisma_marine_mode_locked"), events::Log::Critical, "Mode switch denied: Marine mode locked while armed");
         		answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_DENIED);
@@ -870,6 +892,12 @@ Commander::handle_command(const vehicle_command_s &cmd)
 							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_AUTO_PRECLAND;
 							break;
 
+						// CUSTOM PRISMA MARINE AUTO
+						case PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE:
+							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE;
+							break;
+						// END CUSTOM
+
 						case PX4_CUSTOM_SUB_MODE_EXTERNAL1...PX4_CUSTOM_SUB_MODE_EXTERNAL8:
 							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_EXTERNAL1 + (custom_sub_mode - PX4_CUSTOM_SUB_MODE_EXTERNAL1);
 							break;
@@ -912,6 +940,14 @@ Commander::handle_command(const vehicle_command_s &cmd)
 						case PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE:
 							//PX4_INFO("Detected desired PRISMA auto sub state");
 							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE;
+							break;
+						case PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL_TS:
+							//PX4_INFO("Detected desired PRISMA manual ts sub state");
+							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS;
+							break;
+						case PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL_FF:
+							//PX4_INFO("Detected desired PRISMA manual ff sub state");
+							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF;
 							break;
 						}
 					}
@@ -1885,7 +1921,8 @@ void Commander::run()
 		// CUSTOM PRISMA MARINE
 		//if ((now >= _last_health_and_arming_check + 100_ms) || _status_changed || nav_state_or_failsafe_changed) 
 		if (((now >= _last_health_and_arming_check + 100_ms) || _status_changed || nav_state_or_failsafe_changed) && 
-			_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL)
+			(_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS && 
+			 _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF))
 		// END CUSTOM
 		{
 			_last_health_and_arming_check = now;
@@ -2301,7 +2338,7 @@ void Commander::handleAutoDisarm()
 
 		// CUSTOM PRISMA MARINE
 		// Check for auto-disarm on landing or pre-flight
-		if (_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL && (_param_com_disarm_land.get() > 0 || _param_com_disarm_preflight.get() > 0)) {
+		if ((_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF) && (_param_com_disarm_land.get() > 0 || _param_com_disarm_preflight.get() > 0)) {
 		// END CUSTOM
 			const bool landed_amid_mission = (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION)
 							 && !_mission_result_sub.get().finished;
