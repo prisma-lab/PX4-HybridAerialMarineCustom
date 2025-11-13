@@ -2084,6 +2084,19 @@ void Commander::checkForMissionUpdate()
 			}
 		}
 
+		// CUSTOM PRSMA MARINE AUTO
+		const bool mission_requests_prisma_marine = mission_result.prisma_marine_active && auto_mission_available;
+
+		if (mission_requests_prisma_marine && _vehicle_land_detected.landed
+			&& (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION)) {
+				_user_mode_intention.change(vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE);
+
+		} else if (!mission_result.prisma_marine_active
+					&& _vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE) {
+				_user_mode_intention.change(vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION);
+		}
+		// END CUSTOM
+
 		if (isArmed() && !_vehicle_land_detected.landed
 		    && (mission_result.timestamp >= _vehicle_status.nav_state_timestamp)
 		    && mission_result.finished

@@ -8,12 +8,12 @@ Marine::Marine(Navigator *navigator) : MissionBlock(navigator), ModuleParams(nul
 	// Use defaults from parameters
 	// _speed_sp = _p_speed_def.get();
 	// _acceptance_radius = _p_wp_radius.get();
-    PX4_INFO("Marine mode started");
+    //PX4_INFO("Marine mode started");
 }
 
 void Marine::on_activation()
 {
-    PX4_INFO("Marine mode activated");
+    //PX4_INFO("Marine mode activated");
 	// Reset state and publish the very first guidance sample
 	_reached = false;
 	_last_pub = 0;

@@ -74,6 +74,12 @@ Mission::on_inactive()
 {
 	_vehicle_status_sub.update();
 
+	// CUSTOM PRISMA MARINE AUTO
+	// Reset marine state request when mission is not running
+	_marine_phase = MarinePhase::MARINE_IDLE;
+	publish_marine_active_state(false);
+	// END CUSTOM
+
 	if (_need_mission_save && _vehicle_status_sub.get().arming_state != vehicle_status_s::ARMING_STATE_ARMED) {
 		save_mission_state();
 	}
@@ -210,6 +216,8 @@ void Mission::setActiveMissionItems()
 
 	// CUSTOM PRISMA MARINE
 
+	const bool was_marine_active = is_marine_active_phase();
+
 	curr_has_pos = item_contains_position(_mission_item);
 	curr_waypoint_is_marine = curr_has_pos && PX4_ISFINITE(_mission_item.altitude) && (_mission_item.altitude <= _nav_mar_alt_thr) 
 				&& (_mission_item.nav_cmd != NAV_CMD_LAND) && (_mission_item.nav_cmd != NAV_CMD_VTOL_LAND);
@@ -237,16 +245,14 @@ void Mission::setActiveMissionItems()
 			_mission_init_climb_altitude_amsl = _global_pos_sub.get().alt + _nav_mar_tkof_alt;
 		}
 	}
+
+	if (was_marine_active != is_marine_active_phase()) {
+		publish_marine_active_state(is_marine_active_phase());
+	}
 	// END CUSTOM
 
 	/*********************************** handle mission item *********************************************/
 	WorkItemType new_work_item_type = WorkItemType::WORK_ITEM_TYPE_DEFAULT;
-
-	// CUSTOM PRISMA MARINE
-	//PRINT NAV COMMAND
-	PX4_INFO("Current NAV CMD: %d", _mission_item.nav_cmd);
-	PX4_INFO("mission item autocontinue: %d", _mission_item.autocontinue);
-	// END CUSTOM
 
 	position_setpoint_triplet_s *pos_sp_triplet = _navigator->get_position_setpoint_triplet();
 	const position_setpoint_s current_setpoint_copy = pos_sp_triplet->current;
@@ -274,18 +280,14 @@ void Mission::setActiveMissionItems()
 			/* try to process next mission item */
 			if (num_found_items >= 1u) {
 				/* got next mission item, update setpoint triplet */
-				mission_item_to_position_setpoint(next_mission_items[0u], &pos_sp_triplet->next);
-				PX4_INFO("mission autocontinue");	
-
+				mission_item_to_position_setpoint(next_mission_items[0u], &pos_sp_triplet->next);	
 			} else {
 				/* next mission item is not available */
-				PX4_INFO("false mission autocontinue");
 				pos_sp_triplet->next.valid = false;
 			}
 
 		} else {
 			/* vehicle will be paused on current waypoint, don't set next item */
-			PX4_INFO("false mission autocontinue");
 			pos_sp_triplet->next.valid = false;
 		}
 
@@ -308,7 +310,6 @@ void Mission::setActiveMissionItems()
 
 	} else {
 		handleVtolTransition(new_work_item_type, next_mission_items, num_found_items);
-		PX4_INFO("Non-position mission item");
 	}
 
 	// Only set the previous position item if the current one really changed
@@ -549,24 +550,20 @@ Mission::save_mission_state()
 	}
 }
 
-// CUSTOM PRISMA MARINE
-// void Mission::do_set_mode(uint8_t main_mode, uint8_t sub_mode)
-// {
-// 	mission_item_s cmd{};
-// 	cmd.nav_cmd   = NAV_CMD_DO_SET_MODE;   // requires NAV_CMD_DO_SET_MODE in navigation.h
-// 	cmd.params[0] = 1.f;                   // MAV_MODE_FLAG_CUSTOM_MODE_ENABLED
-// 	cmd.params[1] = static_cast<float>(main_mode);
-// 	cmd.params[2] = static_cast<float>(sub_mode);
-// 	issue_command(cmd);                    // MissionBlock → vehicle_command
-// }
+// CUSTOM PRISMA MARINE AUTO
 
-// void Mission::do_set_mode_prisma_auto_marine()
-// {
-// 	do_set_mode(PX4_CUSTOM_MAIN_MODE_PRISMA, PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE);
-// }
+bool Mission::is_marine_active_phase() const
+{
+	return (_marine_phase == MarinePhase::MARINE_ON_WATER);
+}
 
-// void Mission::do_set_mode_auto_mission()
-// {
-// 	do_set_mode(PX4_CUSTOM_MAIN_MODE_AUTO, PX4_CUSTOM_SUB_MODE_AUTO_MISSION);
-// }
+void Mission::publish_marine_active_state(bool active)
+{
+	mission_result_s *mission_result = _navigator->get_mission_result();
+
+	if (mission_result->prisma_marine_active != active) {
+		mission_result->prisma_marine_active = active;
+		_navigator->set_mission_result_updated();
+	}
+}
 // END CUSTOM

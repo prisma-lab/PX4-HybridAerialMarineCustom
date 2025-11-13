@@ -13,6 +13,9 @@ bool valid			# true if mission is valid
 bool warning			# true if mission is valid, but has potentially problematic items leading to safety warnings
 bool finished			# true if mission has been completed
 bool failure			# true if the mission cannot continue or be completed for some reason
+# CUSTOM PRISMA MARINE AUTO
+bool prisma_marine_active		# true if the mission is a Prisma Marine Auto mission
+# END CUSTOM
 
 bool item_do_jump_changed	# true if the number of do jumps remaining has changed
 uint16 item_changed_index	# indicate which item has changed

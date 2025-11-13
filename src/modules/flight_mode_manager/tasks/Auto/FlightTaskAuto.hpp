@@ -73,7 +73,7 @@ enum class WaypointType : int {
 	land = position_setpoint_s::SETPOINT_TYPE_LAND,
 	idle = position_setpoint_s::SETPOINT_TYPE_IDLE,
 	// CUSTOM PRISMA MARINE
-	prisma_nav = position_setpoint_s::SETPOINT_TYPE_PRISMA_NAV,
+	prisma_nav = position_setpoint_s::SETPOINT_TYPE_PRISMA_MARINE_AUTO
 	// END CUSTOM
 };
 
