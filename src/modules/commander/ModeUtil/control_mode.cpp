@@ -153,7 +153,7 @@ void getVehicleControlMode(uint8_t nav_state, uint8_t vehicle_type,
 
 	// CUSTOM PRISMA MARINE AUTO
 	case vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE:
-		vehicle_control_mode.flag_control_auto_enabled = true;
+		vehicle_control_mode.flag_control_auto_enabled = false;
 		vehicle_control_mode.flag_control_prisma_auto_marine_enabled = true;
 
 		vehicle_control_mode.flag_control_rates_enabled = false;

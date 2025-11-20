@@ -2084,16 +2084,18 @@ void Commander::checkForMissionUpdate()
 			}
 		}
 
-		// CUSTOM PRSMA MARINE AUTO
+		// CUSTOM PRISMA MARINE AUTO
 		const bool mission_requests_prisma_marine = mission_result.prisma_marine_active && auto_mission_available;
 
 		if (mission_requests_prisma_marine && _vehicle_land_detected.landed
 			&& (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION)) {
 				_user_mode_intention.change(vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE);
+				PX4_INFO("Switching to PRISMA MARINE AUTO mode as per mission request");
 
 		} else if (!mission_result.prisma_marine_active
 					&& _vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE) {
 				_user_mode_intention.change(vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION);
+				PX4_INFO("Switching to AUTO MISSION mode as per mission request");
 		}
 		// END CUSTOM
 
@@ -2351,10 +2353,19 @@ void Commander::handleAutoDisarm()
 
 		// CUSTOM PRISMA MARINE
 		// Check for auto-disarm on landing or pre-flight
-		if ((_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF) && (_param_com_disarm_land.get() > 0 || _param_com_disarm_preflight.get() > 0)) {
+		if ((_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL 
+			&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS 
+			&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF)
+			//&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_AUTO_MARINE) 
+			&& (_param_com_disarm_land.get() > 0 || _param_com_disarm_preflight.get() > 0)) {
 		// END CUSTOM
-			const bool landed_amid_mission = (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION)
+		// CUSTOM PRISMA MARINE AUTO
+			// const bool landed_amid_mission = (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION)
+			// 				 && !_mission_result_sub.get().finished;
+			const bool landed_amid_mission = (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION || 
+											  _vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE)
 							 && !_mission_result_sub.get().finished;
+		// END CUSTOM
 			const bool auto_disarm_land_enabled = _param_com_disarm_land.get() > 0 && !landed_amid_mission
 							      && !_config_overrides.disable_auto_disarm;
 

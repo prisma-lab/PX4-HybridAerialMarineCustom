@@ -69,8 +69,15 @@ void MarineNavigation::Run()
 		_manual_control_sub.copy(&rc_input);
 	}
 
+	if (_pos_sp_triplet_sub.updated()) {
+		PX4_INFO("Received new position setpoint triplet");
+		_pos_sp_triplet_sub.copy(&_pos_sp_triplet);
+		// PRINT LAT LON
+		//PX4_INFO("Current WP: lat %.7f, lon %.7f", (double)_pos_sp_triplet.current.lat, (double)_pos_sp_triplet.current.lon);
+	}
+
 	in_marine_mode = (vehicle_control_mode.flag_control_prisma_marine_manual_enabled || vehicle_control_mode.flag_control_prisma_marine_manual_ts_enabled || 
-		vehicle_control_mode.flag_control_prisma_marine_manual_ff_enabled);
+		vehicle_control_mode.flag_control_prisma_marine_manual_ff_enabled || vehicle_control_mode.flag_control_prisma_auto_marine_enabled);
 
 	if (vehicle_control_mode.flag_control_prisma_marine_manual_enabled) {
 		
@@ -283,6 +290,9 @@ void MarineNavigation::Run()
 		marine_navigation.force_input = 0;
 		marine_navigation.torque_input = 0;
 		marine_navigation.angular_error = 0;
+	}
+	else if(vehicle_control_mode.flag_control_prisma_auto_marine_enabled && _pos_sp_triplet.current.valid) {
+		// // AUTO MODE implementation can be added here
 	}
 	// If NOT in manual control mode, stop the servos
 	else if(!in_marine_mode) {

@@ -186,7 +186,7 @@ void FlightModeManager::start_flight_task()
 	}
 
 	// Navigator interface for autonomous modes
-	if (_vehicle_control_mode_sub.get().flag_control_auto_enabled
+	if (_vehicle_control_mode_sub.get().flag_control_auto_enabled && !_vehicle_control_mode_sub.get().flag_control_prisma_auto_marine_enabled
 	    && !nav_state_descend) {
 		found_some_task = true;
 

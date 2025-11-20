@@ -41,4 +41,5 @@ px4_add_module(
 		MarineNavigation_quat.cpp
 	DEPENDS
 		px4_work_queue
+		l1
 	)

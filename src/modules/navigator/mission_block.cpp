@@ -259,9 +259,11 @@ MissionBlock::is_mission_item_reached_or_completed()
 			// check if within loiter radius around wp, if yes then set altitude sp to mission item
 			if (dist >= 0.0f && dist_xy <= (_navigator->get_acceptance_radius() + mission_item_loiter_radius_abs)
 			    && dist_z <= _navigator->get_altitude_acceptance_radius()) {
-
+				PX4_INFO("FW loiter waypoint reached");
 				_waypoint_position_reached = true;
 			}
+			// CUSTOM PRISMA MARINE AUTO
+			// END CUSTOM
 
 		} else if (_mission_item.nav_cmd == NAV_CMD_LOITER_TO_ALT) {
 			// NAV_CMD_LOITER_TO_ALT only uses mission item altitude once it's in the loiter.

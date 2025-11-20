@@ -8,12 +8,12 @@ Marine::Marine(Navigator *navigator) : MissionBlock(navigator), ModuleParams(nul
 	// Use defaults from parameters
 	// _speed_sp = _p_speed_def.get();
 	// _acceptance_radius = _p_wp_radius.get();
-    //PX4_INFO("Marine mode started");
+    PX4_INFO("Marine mode started");
 }
 
 void Marine::on_activation()
 {
-    //PX4_INFO("Marine mode activated");
+    PX4_INFO("Marine mode activated");
 	// Reset state and publish the very first guidance sample
 	_reached = false;
 	_last_pub = 0;
@@ -44,18 +44,19 @@ void Marine::on_active()
 	}
 }
 
-// void Marine::on_inactive()
-// {
-// 	// Send a final message marking autonomy off (optional)
-// 	vehicle_marine_setpoint_s sp{};
-// 	sp.timestamp = hrt_absolute_time();
-// 	sp.autonomous = false;
-// 	sp.lat = _lat_target_deg;
-// 	sp.lon = _lon_target_deg;
-// 	sp.speed_m_s = 0.f;
-// 	sp.acceptance_radius = _acceptance_radius;
-// 	_sp_pub.publish(sp);
-// }
+void Marine::on_inactive()
+{
+	// Send a final message marking autonomy off (optional)
+	// vehicle_marine_setpoint_s sp{};
+	// sp.timestamp = hrt_absolute_time();
+	// sp.autonomous = false;
+	// sp.lat = _lat_target_deg;
+	// sp.lon = _lon_target_deg;
+	// sp.speed_m_s = 0.f;
+	// sp.acceptance_radius = _acceptance_radius;
+	// _sp_pub.publish(sp);
+	//PX4_INFO("Marine mode deactivated");
+}
 
 void Marine::set_target(double lat_deg, double lon_deg)
 {

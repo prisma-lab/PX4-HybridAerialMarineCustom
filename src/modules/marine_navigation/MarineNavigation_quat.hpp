@@ -13,6 +13,7 @@
 #include <lib/parameters/param.h>
 #include <lib/geo/geo.h>
 #include <lib/events/events.h>
+#include <lib/l1/ECL_L1_Pos_Controller.hpp>
 
 #include <matrix/math.hpp>
 
@@ -33,6 +34,7 @@
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/mavlink_log.h> 
 #include <uORB/topics/marine_navigation.h>
+#include <uORB/topics/position_setpoint_triplet.h>
 
 using namespace time_literals;
 using matrix::Eulerf;
@@ -79,6 +81,7 @@ private:
 	uORB::Subscription _vehicle_angular_velocity_sub{ORB_ID(vehicle_angular_velocity)};
  	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
 	uORB::Subscription _vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
+	uORB::Subscription _pos_sp_triplet_sub{ORB_ID(position_setpoint_triplet)};
 
 	// Performance counters
 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
@@ -90,6 +93,7 @@ private:
 	vehicle_attitude_s vehicle_attitude{};
 	vehicle_local_position_s vehicle_local_position{};
 	marine_navigation_s marine_navigation{}; // Marine navigation topic instance
+	position_setpoint_triplet_s	_pos_sp_triplet{};
 
 	// Parameters
 	DEFINE_PARAMETERS(
@@ -137,6 +141,19 @@ private:
 	bool module_initialization{false}; // Flag to check if integral is initialized
 	float last_timestamp{0};
 	Vector2f control_input{0, 0}; // Control inputs for the propellers
+
+	// --- L1 auto marine ---
+	ECL_L1_Pos_Controller _l1_pos_ctrl{};
+	bool  _l1_initialized{false};
+
+	// controllo auto velocità (surge)
+	float _int_v_err_auto{0.0f};    // integratore velocità auto
+	float _v_cruise_auto{1.0f};     // [m/s] velocità di crociera auto (da parametrizzare se vuoi)
+	float _d_slow_auto{5.0f};       // [m] distanza di "rallentamento" vicino al waypoint
+
+	// guadagni per controllo yaw auto (torque_input)
+	float _Kp_psi_auto{1.0f};
+	float _Kd_psi_auto{0.1f};
 
 	bool in_marine_mode{false};
 };

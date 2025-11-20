@@ -31,6 +31,7 @@ public:
 	// NavigatorMode interface
 	void on_activation() override;
 	void on_active() override;
+	void on_inactive() override;
 
 	// Configure target
 	void set_target(double lat_deg, double lon_deg);

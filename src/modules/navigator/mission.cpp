@@ -76,8 +76,8 @@ Mission::on_inactive()
 
 	// CUSTOM PRISMA MARINE AUTO
 	// Reset marine state request when mission is not running
-	_marine_phase = MarinePhase::MARINE_IDLE;
-	publish_marine_active_state(false);
+	// _marine_phase = MarinePhase::MARINE_IDLE;
+	// publish_marine_active_state(false);
 	// END CUSTOM
 
 	if (_need_mission_save && _vehicle_status_sub.get().arming_state != vehicle_status_s::ARMING_STATE_ARMED) {
@@ -226,12 +226,16 @@ void Mission::setActiveMissionItems()
 		_marine_phase = MarinePhase::MARINE_APPROACH;
 		// Current item is switched to land to trigger the handleLanding(...)
 		_mission_item.nav_cmd = NAV_CMD_LAND; 
+		PX4_INFO("Approaching water for marine operation");
 	} else if (this->_marine_phase == MarinePhase::MARINE_APPROACH) {
 		// This is necessary because handleLanding sets another item but not with the landing command, local mods affect only the current cycle
 		_marine_phase = MarinePhase::MARINE_ON_WATER;
-		_mission_item.nav_cmd = NAV_CMD_LAND;   
+		_mission_item.nav_cmd = NAV_CMD_LAND;  
+		PX4_INFO("On water, switching to marine navigation"); 
 	} else if (_marine_phase == MarinePhase::MARINE_ON_WATER && curr_waypoint_is_marine) {
-		_mission_item.nav_cmd = NAV_CMD_PRISMA_NAV; // Custom command to stay on water
+		//_mission_item.nav_cmd = NAV_CMD_PRISMA_NAV; // Custom command to stay on water
+		_mission_item.altitude = -2.0f; // Ensure altitude is zero on water
+		PX4_INFO("Navigating on water");
 	} else if (this->_marine_phase == MarinePhase::MARINE_ON_WATER && !curr_waypoint_is_marine) {
 		PX4_INFO("Taking off from water to air");
 		this->_marine_phase = MarinePhase::MARINE_IDLE;
@@ -246,9 +250,9 @@ void Mission::setActiveMissionItems()
 		}
 	}
 
-	if (was_marine_active != is_marine_active_phase()) {
-		publish_marine_active_state(is_marine_active_phase());
-	}
+	// PRINT NAV COMMAND
+	PX4_INFO("NAV CMD: %d, MARINE PHASE: %d, NEXT WAYPOINT IS MARINE %d", _mission_item.nav_cmd, static_cast<int>(_marine_phase), curr_waypoint_is_marine);
+
 	// END CUSTOM
 
 	/*********************************** handle mission item *********************************************/
@@ -331,6 +335,12 @@ void Mission::setActiveMissionItems()
 
 	publish_navigator_mission_item(); // for logging
 	_navigator->set_position_setpoint_triplet_updated();
+
+	// CUSTOM PRISMA MARINE AUTO
+	if (was_marine_active != is_marine_active_phase()) {
+		publish_marine_active_state(is_marine_active_phase());
+	}
+	// END CUSTOMSSS
 }
 
 void Mission::handleTakeoff(WorkItemType &new_work_item_type, mission_item_s next_mission_items[],
@@ -562,6 +572,10 @@ void Mission::publish_marine_active_state(bool active)
 	mission_result_s *mission_result = _navigator->get_mission_result();
 
 	if (mission_result->prisma_marine_active != active) {
+		mission_result->valid = true;
+		mission_result->warning = false;
+		mission_result->finished = false;
+		mission_result->failure = false;
 		mission_result->prisma_marine_active = active;
 		_navigator->set_mission_result_updated();
 	}
