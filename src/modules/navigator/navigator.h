@@ -287,6 +287,10 @@ public:
 
 	void mode_completed(uint8_t nav_state, uint8_t result = mode_completed_s::RESULT_SUCCESS);
 
+	// CUSTOM PRISMA MARINE AUTO
+	float get_marine_acceptance_radius() { return _param_mar_acc_rad.get(); }
+	// END CUSTOM
+
 private:
 
 	int _local_pos_sub{-1};
@@ -413,6 +417,9 @@ private:
 		(ParamFloat<px4::params::MIS_YAW_TMT>)     _param_mis_yaw_tmt,
 		(ParamFloat<px4::params::MIS_YAW_ERR>)     _param_mis_yaw_err,
 		(ParamFloat<px4::params::MIS_PD_TO>)       _param_mis_payload_delivery_timeout,
-		(ParamInt<px4::params::MIS_LND_ABRT_ALT>)  _param_mis_lnd_abrt_alt
+		(ParamInt<px4::params::MIS_LND_ABRT_ALT>)  _param_mis_lnd_abrt_alt,
+		// CUSTOM PRISMA MARINE AUTO
+		(ParamFloat<px4::params::NAV_MAR_ACC_RAD>) _param_mar_acc_rad
+		// END CUSTOM
 	)
 };

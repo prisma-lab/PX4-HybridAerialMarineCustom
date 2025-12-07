@@ -332,6 +332,11 @@ protected:
 	uORB::SubscriptionData<vehicle_global_position_s> _global_pos_sub{ORB_ID(vehicle_global_position)};	/**< global position subscription */
 	uORB::Publication<navigator_mission_item_s> _navigator_mission_item_pub{ORB_ID::navigator_mission_item}; /**< Navigator mission item publication*/
 	uORB::Publication<mission_s> _mission_pub{ORB_ID(mission)}; /**< Mission publication*/
+
+ 	// CUSTOM PRISMA MARINE AUTO
+	float get_marine_altitude_threshold() { return _param_mar_alt_thr.get(); };
+	float get_marine_takeoff_altitude() { return _param_mar_tkof_alt.get(); };
+	// END CUSTOM
 private:
 	/**
 	 * @brief Maximum number of jump mission items iterations
@@ -467,8 +472,8 @@ private:
 		(ParamFloat<px4::params::MIS_DIST_1WP>) _param_mis_dist_1wp,
 		(ParamInt<px4::params::MIS_MNT_YAW_CTL>) _param_mis_mnt_yaw_ctl,
 		// CUSTOM PRISMA MARINE
-		(ParamFloat<px4::params::NAV_MAR_ALT_THR>)   _param_mar_alt_thr,	// altitude threshold to consider a waypoint as marine
-		(ParamFloat<px4::params::NAV_MAR_TKOF_ALT>)   _param_mar_tkoff_alt	// takeoff altitude for marine
+		(ParamFloat<px4::params::NAV_MAR_ALT_THR>) _param_mar_alt_thr,	// altitude threshold to consider a waypoint as marine
+		(ParamFloat<px4::params::NAV_MAR_TKOF_ALT>) _param_mar_tkof_alt	// acceptance radius for marine waypoints
 		// END CUSTOM
 	)
 

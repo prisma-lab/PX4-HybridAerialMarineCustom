@@ -219,7 +219,7 @@ void Mission::setActiveMissionItems()
 	const bool was_marine_active = is_marine_active_phase();
 
 	curr_has_pos = item_contains_position(_mission_item);
-	curr_waypoint_is_marine = curr_has_pos && PX4_ISFINITE(_mission_item.altitude) && (_mission_item.altitude <= _nav_mar_alt_thr) 
+	curr_waypoint_is_marine = curr_has_pos && PX4_ISFINITE(_mission_item.altitude) && (_mission_item.altitude <= get_marine_altitude_threshold()) 
 				&& (_mission_item.nav_cmd != NAV_CMD_LAND) && (_mission_item.nav_cmd != NAV_CMD_VTOL_LAND);
 
 	if (curr_waypoint_is_marine && this->_marine_phase == MarinePhase::MARINE_IDLE) {
@@ -234,7 +234,6 @@ void Mission::setActiveMissionItems()
 		PX4_INFO("On water, switching to marine navigation"); 
 	} else if (_marine_phase == MarinePhase::MARINE_ON_WATER && curr_waypoint_is_marine) {
 		//_mission_item.nav_cmd = NAV_CMD_PRISMA_NAV; // Custom command to stay on water
-		_mission_item.altitude = -2.0f; // Ensure altitude is zero on water
 		PX4_INFO("Navigating on water");
 	} else if (this->_marine_phase == MarinePhase::MARINE_ON_WATER && !curr_waypoint_is_marine) {
 		PX4_INFO("Taking off from water to air");
@@ -244,9 +243,9 @@ void Mission::setActiveMissionItems()
 		position_setpoint_triplet_s *prisma_sp_triplet = _navigator->get_position_setpoint_triplet();
 		if (prisma_sp_triplet->current.valid
 			&& prisma_sp_triplet->current.type == position_setpoint_s::SETPOINT_TYPE_POSITION) {
-			_mission_init_climb_altitude_amsl = prisma_sp_triplet->current.alt + _nav_mar_tkof_alt;
+			_mission_init_climb_altitude_amsl = prisma_sp_triplet->current.alt + get_marine_takeoff_altitude();
 		} else {
-			_mission_init_climb_altitude_amsl = _global_pos_sub.get().alt + _nav_mar_tkof_alt;
+			_mission_init_climb_altitude_amsl = _global_pos_sub.get().alt + get_marine_takeoff_altitude();
 		}
 	}
 

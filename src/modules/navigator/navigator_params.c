@@ -187,3 +187,16 @@ PARAM_DEFINE_INT32(NAV_FORCE_VT, 1);
  * @group Mission
  */
 PARAM_DEFINE_FLOAT(NAV_MIN_LTR_ALT, -1.f);
+
+// CUSTOM PRISMA MARINE AUTO
+/**
+ * Marine navigation acceptance radius.
+ *
+ * @unit m
+ * @min 0
+ * @decimal 2
+ * @increment 0.01
+ * @group Mission
+ */
+PARAM_DEFINE_FLOAT(NAV_MAR_ACC_RAD, 0.5f);
+// END CUSTOM

@@ -180,6 +180,33 @@ MissionBlock::is_mission_item_reached_or_completed()
 		break;
 	}
 
+	// CUSTOM PRISMA MARINE AUTO
+	mission_result_s *mission_result = _navigator->get_mission_result();
+
+	if (!_waypoint_position_reached && mission_result->prisma_marine_active) {
+
+		float mar_dist_xy = -1.0f;
+		float mar_dist_z = -1.0f;
+
+		const float mar_mission_item_altitude_amsl = get_absolute_altitude_for_item(_mission_item);
+
+		// consider mission_item.loiter_radius invalid if NAN or 0, use default value in this case.
+		const float mar_mission_item_loiter_radius_abs = _navigator->get_marine_acceptance_radius();
+
+		mar_dist_xy = get_distance_to_point_global_wgs84(_mission_item.lat, _mission_item.lon, mar_mission_item_altitude_amsl,
+				_navigator->get_global_position()->lat,
+				_navigator->get_global_position()->lon,
+				_navigator->get_global_position()->alt,
+				&mar_dist_xy, &mar_dist_z);
+
+		if (mar_dist_xy >= 0.0f && mar_dist_xy <= ( _navigator->get_acceptance_radius() + mar_mission_item_loiter_radius_abs)) {
+
+			PX4_INFO("Marine active, waypoint reached");
+			_waypoint_position_reached = true;
+		}
+	}
+	// END CUSTOM
+
 	// Update the 'waypoint position reached' status
 	if (!_navigator->get_land_detected()->landed && !_waypoint_position_reached) {
 
@@ -262,8 +289,6 @@ MissionBlock::is_mission_item_reached_or_completed()
 				PX4_INFO("FW loiter waypoint reached");
 				_waypoint_position_reached = true;
 			}
-			// CUSTOM PRISMA MARINE AUTO
-			// END CUSTOM
 
 		} else if (_mission_item.nav_cmd == NAV_CMD_LOITER_TO_ALT) {
 			// NAV_CMD_LOITER_TO_ALT only uses mission item altitude once it's in the loiter.

@@ -148,12 +148,16 @@ private:
 
 	// controllo auto velocità (surge)
 	float _int_v_err_auto{0.0f};    // integratore velocità auto
-	float _v_cruise_auto{1.0f};     // [m/s] velocità di crociera auto (da parametrizzare se vuoi)
+	float _v_cruise_auto{0.8f};     // [m/s] velocità di crociera auto (da parametrizzare se vuoi)
 	float _d_slow_auto{5.0f};       // [m] distanza di "rallentamento" vicino al waypoint
 
 	// guadagni per controllo yaw auto (torque_input)
 	float _Kp_psi_auto{1.0f};
 	float _Kd_psi_auto{0.1f};
+
+	MapProjection _global_local_proj_ref{};
+
+	float vforward_cmd{0.0f};
 
 	bool in_marine_mode{false};
 };
