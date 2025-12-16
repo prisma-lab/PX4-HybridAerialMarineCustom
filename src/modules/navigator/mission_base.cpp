@@ -46,6 +46,10 @@
 #include "mission_feasibility_checker.h"
 #include "navigator.h"
 
+// CUSTOM PRISMA MARINE 
+#include <lib/geo/geo.h>
+// END CUSTOM
+
 MissionBase::MissionBase(Navigator *navigator, int32_t dataman_cache_size_signed) :
 	MissionBlock(navigator),
 	ModuleParams(navigator),
@@ -632,9 +636,21 @@ void MissionBase::handleLanding(WorkItemType &new_work_item_type, mission_item_s
 	/* ignore yaw for landing items */
 	/* XXX: if specified heading for landing is desired we could add another step before the descent
 		* that aligns the vehicle first */
+	// CUSTOM PRISMA MARINE AUTO
+	// if (_mission_item.nav_cmd == NAV_CMD_LAND || _mission_item.nav_cmd == NAV_CMD_VTOL_LAND) { ORIGINAL VERSION
+	// 	_mission_item.yaw = NAN;
+	// }
 	if (_mission_item.nav_cmd == NAV_CMD_LAND || _mission_item.nav_cmd == NAV_CMD_VTOL_LAND) {
-		_mission_item.yaw = NAN;
+		if (_marine_phase == MarinePhase::MARINE_ON_WATER && (int)num_found_items >= 1 && item_contains_position(next_mission_items[0U]))
+		{
+			_mission_item.yaw = get_bearing_to_next_waypoint((double)_mission_item.lat, (double)_mission_item.lon, (double)next_mission_items[0U].lat, (double)next_mission_items[0U].lon);
+		}
+		else
+		{
+			_mission_item.yaw = NAN;
+		}
 	}
+	// END CUSTOM
 }
 
 bool MissionBase::position_setpoint_equal(const position_setpoint_s *p1, const position_setpoint_s *p2) const
