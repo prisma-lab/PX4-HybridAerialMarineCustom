@@ -457,28 +457,28 @@
     </joint>
 
     <plugin
-      filename="gz-sim-thruster-system"
-      name="gz::sim::systems::Thruster">
+      filename="libCustomThrusters.so"
+      name="vrx::CustomThrusters">
       <joint_name>left_th_joint</joint_name>
       <thrust_coefficient>0.00004422</thrust_coefficient>
       <fluid_density>1000</fluid_density>
       <propeller_diameter>0.9</propeller_diameter>
       <velocity_control>false</velocity_control>
-      <max_thrust_cmd>1</max_thrust_cmd>
+      <max_thrust_cmd>5</max_thrust_cmd>
       <namespace>model</namespace>
       <topic>USV_test_0/servo_0</topic>
       <!-- <topic>USV_test_0/left_thruster</topic> -->
       <!--<commandSubTopic>command/motor_speed</commandSubTopic>-->
     </plugin>
     <plugin
-      filename="gz-sim-thruster-system"
-      name="gz::sim::systems::Thruster">
+      filename="libCustomThrusters.so"
+      name="vrx::CustomThrusters">
       <joint_name>right_th_joint</joint_name>
       <thrust_coefficient>0.00004422</thrust_coefficient>
       <fluid_density>1000</fluid_density>
       <propeller_diameter>0.9</propeller_diameter>
       <velocity_control>false</velocity_control>
-      <max_thrust_cmd>1</max_thrust_cmd>
+      <max_thrust_cmd>5</max_thrust_cmd>
       <namespace>model</namespace>
       <topic>USV_test_0/servo_1</topic>
       <!-- <topic>USV_test_0/right_thruster</topic>  -->
@@ -836,22 +836,22 @@
         name="vrx::SimpleHydrodynamicsUSV">
         <link_name>base_link</link_name>
         <!-- Added mass -->
-        <xDotU>0.0</xDotU>
-        <yDotV>0.0</yDotV>
+        <xDotU>1.0</xDotU>
+        <yDotV>1.0</yDotV>
         <nDotR>0.0</nDotR>
         <!-- Linear and quadratic drag -->
-        <!-- <xU>100.0</xU>
-        <xUU>150.0</xUU>
-        <yV>100.0</yV>
-        <yVV>100.0</yVV>
-        <zW>500.0</zW>
-        <kP>300.0</kP>
-        <kPP>600.0</kPP>
-        <mQ>600.0</mQ> 
-        <mQQ>900.0</mQQ>
-        <nR>800.0</nR>
-        <nRR>800.0</nRR> -->
-        <xU>0.7</xU>
+        <xU>1.5</xU>
+        <xUU>3.0</xUU>
+        <yV>8.0</yV>
+        <yVV>22.5</yVV>
+        <zW>30.0</zW>
+        <kP>3.0</kP>
+        <kPP>4.5</kPP>
+        <mQ>3.0</mQ> 
+        <mQQ>3.0</mQQ>
+        <nR>2.2</nR>
+        <nRR>2.2</nRR>
+         <!--<xU>0.7</xU>
         <xUU>1.2</xUU>
         <yV>0.7</yV>
         <yVV>1.2</yVV>
@@ -861,7 +861,7 @@
         <mQ>2.2</mQ> 
         <mQQ>2.2</mQQ>
         <nR>2.2</nR>
-        <nRR>2.2</nRR>
+        <nRR>2.2</nRR> -->
       </plugin>
 
   </model>

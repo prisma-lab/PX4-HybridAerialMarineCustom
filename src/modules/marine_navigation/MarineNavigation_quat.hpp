@@ -142,24 +142,15 @@ private:
 	float last_timestamp{0};
 	Vector2f control_input{0, 0}; // Control inputs for the propellers
 
-	// --- L1 auto marine ---
-	ECL_L1_Pos_Controller _l1_pos_ctrl{};
-	bool  _l1_initialized{false};
-
 	// controllo auto velocità (surge)
-	float _int_v_err_auto{0.0f};    // integratore velocità auto
-	float _v_cruise_auto{2.5f};     // [m/s] velocità di crociera auto (da parametrizzare se vuoi)
-	float _d_slow_auto{5.0f};       // [m] distanza di "rallentamento" vicino al waypoint
+	float _v_cruise_auto{1.5f};     // [m/s] velocità di crociera auto (da parametrizzare se vuoi)
+	float _d_slow_auto{1.0f};       // [m] distanza di "rallentamento" vicino al waypoint
 
 	// guadagni per controllo yaw auto (torque_input)
 	float _Kp_psi_auto{1.0f};
 	float _Kd_psi_auto{0.1f};
 
 	MapProjection _global_local_proj_ref{};
-
-	float vforward_cmd{0.0f};
-	float omega_d_cmd{0.0f};
-	float omega_d_cmd_int{0.0f};
 
 	bool in_marine_mode{false};
 };
