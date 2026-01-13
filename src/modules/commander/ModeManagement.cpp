@@ -198,7 +198,7 @@ void Modes::printStatus() const
 	for (int i = Modes::FIRST_EXTERNAL_NAV_STATE; i <= Modes::LAST_EXTERNAL_NAV_STATE; ++i) {
 		if (valid(i)) {
 			const Modes::Mode &cur_mode = mode(i);
-			PX4_INFO("External Mode %i: nav_state: %i, name: %s", i - vehicle_status_s::NAVIGATION_STATE_EXTERNAL1 + 1, i,
+			PX4_INFO("External Mode %i: nav_state: %i, name: %s", i - vehicle_status_s::NAVIGATION_STATE_EXTERNAL6 + 1, i,
 				 cur_mode.name);
 
 			if (cur_mode.replaces_nav_state != Mode::REPLACES_NAV_STATE_NONE

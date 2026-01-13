@@ -59,7 +59,7 @@ public:
 
 private:
 	static constexpr int MAX_NUM_EXTERNAL_MODES = vehicle_status_s::NAVIGATION_STATE_EXTERNAL8 -
-			vehicle_status_s::NAVIGATION_STATE_EXTERNAL1 + 1;
+			vehicle_status_s::NAVIGATION_STATE_EXTERNAL6 + 1;
 
 	explicit MavlinkStreamAvailableModes(Mavlink *mavlink) : MavlinkStream(mavlink) {}
 
@@ -96,9 +96,32 @@ private:
 			static_assert(sizeof(available_modes.mode_name) >= sizeof(ExternalModeName::name), "mode name too short");
 
 			// Is it an external mode?
-			unsigned external_mode_index = nav_state - vehicle_status_s::NAVIGATION_STATE_EXTERNAL1;
+			unsigned external_mode_index = nav_state - vehicle_status_s::NAVIGATION_STATE_EXTERNAL6;
 
-			if (nav_state >= vehicle_status_s::NAVIGATION_STATE_EXTERNAL1 && external_mode_index < MAX_NUM_EXTERNAL_MODES) {
+			// CUSTOM PRISMA MARINE
+			if (nav_state == 23) {
+				strncpy(available_modes.mode_name, "Prisma 1", sizeof(available_modes.mode_name));
+				available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
+
+			} else if (nav_state == 24) {
+				strncpy(available_modes.mode_name, "Prisma Marine Manual", sizeof(available_modes.mode_name));
+				available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
+
+			} else if (nav_state == 25) {
+				strncpy(available_modes.mode_name, "Prisma Auto Marine", sizeof(available_modes.mode_name));
+				available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
+
+			} else if (nav_state == 26) {
+				strncpy(available_modes.mode_name, "Prisma Manual TS", sizeof(available_modes.mode_name));
+				available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
+
+			} else if (nav_state == 27) {
+				strncpy(available_modes.mode_name, "Prisma Manual FF", sizeof(available_modes.mode_name));
+				available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
+			}
+			// END CUSTOM
+
+			else if (nav_state >= vehicle_status_s::NAVIGATION_STATE_EXTERNAL6 && external_mode_index < MAX_NUM_EXTERNAL_MODES) { // CUSTOM PRISMA MARINE --- ADDED "else if", it was only "if"
 				if (cannot_be_selected) {
 					// If not selectable, it's not registered
 					strcpy(available_modes.mode_name, "(Mode not available)");
@@ -185,7 +208,7 @@ private:
 					_external_mode_names = new ExternalModeName[MAX_NUM_EXTERNAL_MODES];
 				}
 
-				unsigned mode_index = reply.mode_id - vehicle_status_s::NAVIGATION_STATE_EXTERNAL1;
+				unsigned mode_index = reply.mode_id - vehicle_status_s::NAVIGATION_STATE_EXTERNAL6;
 
 				if (_external_mode_names && mode_index < MAX_NUM_EXTERNAL_MODES) {
 					memcpy(_external_mode_names[mode_index].name, reply.name, sizeof(ExternalModeName::name));

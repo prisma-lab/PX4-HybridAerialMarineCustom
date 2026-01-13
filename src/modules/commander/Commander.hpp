@@ -349,4 +349,8 @@ private:
 		(ParamInt<px4::params::COM_TAKEOFF_ACT>)    _param_takeoff_finished_action,
 		(ParamFloat<px4::params::COM_CPU_MAX>)      _param_com_cpu_max
 	)
+
+	// CUSTOM PRISMA MARINE 
+	bool lock_home_position_update{false};
+	// END CUSTOM
 };

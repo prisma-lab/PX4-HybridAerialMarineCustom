@@ -76,15 +76,15 @@ static inline navigation_mode_t navigation_mode(uint8_t nav_state)
 
 	case vehicle_status_s::NAVIGATION_STATE_AUTO_VTOL_TAKEOFF: return navigation_mode_t::auto_vtol_takeoff;
 
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL1: return navigation_mode_t::external1;
+	// case vehicle_status_s::NAVIGATION_STATE_EXTERNAL1: return navigation_mode_t::external1;
 
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL2: return navigation_mode_t::external2;
+	// case vehicle_status_s::NAVIGATION_STATE_EXTERNAL2: return navigation_mode_t::external2;
 
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL3: return navigation_mode_t::external3;
+	// case vehicle_status_s::NAVIGATION_STATE_EXTERNAL3: return navigation_mode_t::external3;
 
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL4: return navigation_mode_t::external4;
+	// case vehicle_status_s::NAVIGATION_STATE_EXTERNAL4: return navigation_mode_t::external4;
 
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL5: return navigation_mode_t::external5;
+	// case vehicle_status_s::NAVIGATION_STATE_EXTERNAL5: return navigation_mode_t::external5;
 
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL6: return navigation_mode_t::external6;
 

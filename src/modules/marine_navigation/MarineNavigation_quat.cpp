@@ -69,11 +69,10 @@ void MarineNavigation::Run()
 		_manual_control_sub.copy(&rc_input);
 	}
 
+	bool new_pos_sp_triplet = false;
 	if (_pos_sp_triplet_sub.updated()) {
-		PX4_INFO("Received new position setpoint triplet");
 		_pos_sp_triplet_sub.copy(&_pos_sp_triplet);
-		// PRINT LAT LON
-		//PX4_INFO("Current WP: lat %.7f, lon %.7f", (double)_pos_sp_triplet.current.lat, (double)_pos_sp_triplet.current.lon);
+		new_pos_sp_triplet = true;
 	}
 
 	in_marine_mode = (vehicle_control_mode.flag_control_prisma_marine_manual_enabled || vehicle_control_mode.flag_control_prisma_marine_manual_ts_enabled || 
@@ -351,17 +350,27 @@ void MarineNavigation::Run()
 		constexpr float k_c      = 0.25f; // adattamento corrente
 		constexpr float k_cl     = 0.02f; // leakage corrente
 		constexpr float vc_max   = 2.0f;  // saturazione corrente stimata [m/s]
-		constexpr float vmin_adapt = 0.2f;
+		constexpr float vmin_adapt = 0.5f;
 
 		// ============================================================================
 		// 4) Stati persistenti: parametro s e integrali + stima corrente
 		// ============================================================================
-		static float s_pf   = 1.0f;  // ascissa curvilinea (segmento) [m]
-		static float xi1_I  = 0.0f;  // integrale errore posizione xi1 [m*s]
-		static float xi2_I  = 0.0f;  // integrale errore posizione xi2 [m*s]
+		// static float s_pf   = 1.0f;  // ascissa curvilinea (segmento) [m]
+		// static float xi1_I  = 0.0f;  // integrale errore posizione xi1 [m*s]
+		// static float xi2_I  = 0.0f;  // integrale errore posizione xi2 [m*s]
 
-		static float vc_hat_x = 0.0f; // corrente stimata (frame locale) [m/s]
-		static float vc_hat_y = 0.0f;
+		// static float vc_hat_x = 0.0f; // corrente stimata (frame locale) [m/s]
+		// static float vc_hat_y = 0.0f;
+
+		if(new_pos_sp_triplet) {
+			// Reset integratori e ascissa curvilinea
+			s_pf    = 1.0f;
+			xi1_I   = 0.0f;
+			xi2_I   = 0.0f;
+			vc_hat_x = 0.0f;
+			vc_hat_y = 0.0f;
+			new_pos_sp_triplet = false;
+		}
 
 		// ============================================================================
 		// Waypoint in local frame

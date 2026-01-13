@@ -143,8 +143,15 @@ private:
 	Vector2f control_input{0, 0}; // Control inputs for the propellers
 
 	// controllo auto velocità (surge)
-	float _v_cruise_auto{1.5f};     // [m/s] velocità di crociera auto (da parametrizzare se vuoi)
-	float _d_slow_auto{1.0f};       // [m] distanza di "rallentamento" vicino al waypoint
+	float _v_cruise_auto{6.5f};     // [m/s] velocità di crociera auto (da parametrizzare se vuoi)
+	float _d_slow_auto{2.0f};       // [m] distanza di "rallentamento" vicino al waypoint
+
+	// Autonomous navigation params
+	float s_pf = 1.0f;  // ascissa curvilinea (segmento) [m]
+	float xi1_I = 0.0f;  // integrale errore posizione xi1 [m*s]
+	float xi2_I = 0.0f;  // integrale errore posizione xi2 [m*s]
+	float vc_hat_x = 0.0f; // corrente stimata (frame locale) [m/s]
+	float vc_hat_y = 0.0f; 
 
 	// guadagni per controllo yaw auto (torque_input)
 	float _Kp_psi_auto{1.0f};

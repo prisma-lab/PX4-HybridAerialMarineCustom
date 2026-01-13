@@ -432,11 +432,11 @@ int Commander::custom_command(int argc, char *argv[])
 			} else if (!strcmp(argv[1], "auto:precland")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_AUTO,
 						     PX4_CUSTOM_SUB_MODE_AUTO_PRECLAND);
-
-			} else if (!strcmp(argv[1], "ext1")) {
-				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_AUTO,
-						     PX4_CUSTOM_SUB_MODE_EXTERNAL1);
 			}
+			// } else if (!strcmp(argv[1], "ext1")) {
+			// 	send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_AUTO,
+			// 			     PX4_CUSTOM_SUB_MODE_EXTERNAL1);
+			// }
 			// CUSTOM PRISMA MARINE
 			else if (!strcmp(argv[1], "prisma:prisma1")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
@@ -666,7 +666,12 @@ transition_result_t Commander::arm(arm_disarm_reason_t calling_reason, bool run_
 	events::send<events::px4::enums::arm_disarm_reason_t>(events::ID("commander_armed_by"), events::Log::Info,
 			"Armed by {1}", calling_reason);
 
-	if (_param_com_home_en.get()) {
+	// CUSTOM PRISMA MARINE: avoids setting the home posiiton in the water if arming in marine mode
+	if (_param_com_home_en.get() && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL 
+			&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS 
+			&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF
+		    && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_AUTO_MARINE) {
+	// END CUSTOM
 		_home_position.setHomePosition();
 	}
 
@@ -898,8 +903,8 @@ Commander::handle_command(const vehicle_command_s &cmd)
 							break;
 						// END CUSTOM
 
-						case PX4_CUSTOM_SUB_MODE_EXTERNAL1...PX4_CUSTOM_SUB_MODE_EXTERNAL8:
-							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_EXTERNAL1 + (custom_sub_mode - PX4_CUSTOM_SUB_MODE_EXTERNAL1);
+						case PX4_CUSTOM_SUB_MODE_EXTERNAL6...PX4_CUSTOM_SUB_MODE_EXTERNAL8:
+							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_EXTERNAL6 + (custom_sub_mode - PX4_CUSTOM_SUB_MODE_EXTERNAL6);
 							break;
 
 						default:
@@ -1884,13 +1889,32 @@ void Commander::run()
 
 		landDetectorUpdate();
 
+		// CUSTOM PRISMA MARINE 
+		const bool in_prisma_marine =
+			(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL) ||
+			(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS) ||
+			(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF) ||
+			(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE);
+
+		if (in_prisma_marine && (_vehicle_land_detected.landed || _vehicle_land_detected.maybe_landed)) {
+			lock_home_position_update = true;
+		}
+		// END CUSTOM
+
 		safetyButtonUpdate();
 
 		_multicopter_throw_launch.update(isArmed());
 
 		vtolStatusUpdate();
 
+		// CUSTOM PRISMA MARINE
+		if (_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL 
+			&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS 
+			&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF
+		    && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_AUTO_MARINE)
+		{//END CUSTOM
 		_home_position.update(_param_com_home_en.get(), !isArmed() && _vehicle_land_detected.landed);
+		}
 
 		handleAutoDisarm();
 
@@ -2217,8 +2241,15 @@ void Commander::landDetectorUpdate()
 				// set the home position when taking off
 				if (!_vehicle_land_detected.landed) {
 					if (was_landed) {
-						_home_position.setHomePosition();
-
+						// CUSTOM PRISMA MARINE: avoid updating home position if taking off from sea
+						if(lock_home_position_update) {
+							lock_home_position_update = false;
+						}
+						else{
+							_home_position.setHomePosition();
+						}
+						//_home_position.setHomePosition();
+						// END CUSTOM
 					} else if (_param_com_home_in_air.get()) {
 						_home_position.setInAirHomePosition();
 					}
