@@ -60,7 +60,15 @@ static inline uint32_t getValidNavStates()
 	       (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_FOLLOW_TARGET) |
 	       (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_PRECLAND) |
 	       (1u << vehicle_status_s::NAVIGATION_STATE_ORBIT) |
-	       (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_VTOL_TAKEOFF);
+	       (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_VTOL_TAKEOFF) |
+		   // CUSTOM PRISMA MARINE
+		   (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_VTOL_TAKEOFF) |
+	       //(1u << vehicle_status_s::NAVIGATION_STATE_PRISMA_1) |
+	       (1u << vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL) |
+	       (1u << vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE) |
+	       (1u << vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS) |
+	       (1u << vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF);
+		   // END CUSTOM
 
 	static_assert(vehicle_status_s::NAVIGATION_STATE_MAX  == 31, "code requires update");
 }
@@ -89,11 +97,18 @@ const char *const nav_state_names[vehicle_status_s::NAVIGATION_STATE_MAX] = {
 	"Precision Landing",
 	"Orbit",
 	"VTOL Takeoff",
-	"External 1",
-	"External 2",
-	"External 3",
-	"External 4",
-	"External 5",
+	// CUSTOM PRISMA MARINE
+	// "External 1",
+	// "External 2",
+	// "External 3",
+	// "External 4",
+	// "External 5",
+	"Prisma 1",
+	"Prisma Marine Manual",
+	"Prisma Auto Marine",
+	"Prisma Manual TS",
+	"Prisma Manual FF",
+	// END CUSTOM
 	"External 6",
 	"External 7",
 	"External 8",

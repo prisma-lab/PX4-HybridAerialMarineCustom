@@ -99,29 +99,29 @@ private:
 			unsigned external_mode_index = nav_state - vehicle_status_s::NAVIGATION_STATE_EXTERNAL6;
 
 			// CUSTOM PRISMA MARINE
-			if (nav_state == 23) {
-				strncpy(available_modes.mode_name, "Prisma 1", sizeof(available_modes.mode_name));
-				available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
+			// if (nav_state == 23) {
+			// 	strncpy(available_modes.mode_name, "Prisma 1", sizeof(available_modes.mode_name));
+			// 	available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
 
-			} else if (nav_state == 24) {
-				strncpy(available_modes.mode_name, "Prisma Marine Manual", sizeof(available_modes.mode_name));
-				available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
+			// } else if (nav_state == 24) {
+			// 	strncpy(available_modes.mode_name, "Prisma Marine Manual", sizeof(available_modes.mode_name));
+			// 	available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
 
-			} else if (nav_state == 25) {
-				strncpy(available_modes.mode_name, "Prisma Auto Marine", sizeof(available_modes.mode_name));
-				available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
+			// } else if (nav_state == 25) {
+			// 	strncpy(available_modes.mode_name, "Prisma Auto Marine", sizeof(available_modes.mode_name));
+			// 	available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
 
-			} else if (nav_state == 26) {
-				strncpy(available_modes.mode_name, "Prisma Manual TS", sizeof(available_modes.mode_name));
-				available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
+			// } else if (nav_state == 26) {
+			// 	strncpy(available_modes.mode_name, "Prisma Manual TS", sizeof(available_modes.mode_name));
+			// 	available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
 
-			} else if (nav_state == 27) {
-				strncpy(available_modes.mode_name, "Prisma Manual FF", sizeof(available_modes.mode_name));
-				available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
-			}
+			// } else if (nav_state == 27) {
+			// 	strncpy(available_modes.mode_name, "Prisma Manual FF", sizeof(available_modes.mode_name));
+			// 	available_modes.mode_name[sizeof(available_modes.mode_name) - 1] = '\0';
+			// }
 			// END CUSTOM
 
-			else if (nav_state >= vehicle_status_s::NAVIGATION_STATE_EXTERNAL6 && external_mode_index < MAX_NUM_EXTERNAL_MODES) { // CUSTOM PRISMA MARINE --- ADDED "else if", it was only "if"
+			if (nav_state >= vehicle_status_s::NAVIGATION_STATE_EXTERNAL6 && external_mode_index < MAX_NUM_EXTERNAL_MODES) { // CUSTOM PRISMA MARINE --- ADDED "else if", it was only "if"
 				if (cannot_be_selected) {
 					// If not selectable, it's not registered
 					strcpy(available_modes.mode_name, "(Mode not available)");
