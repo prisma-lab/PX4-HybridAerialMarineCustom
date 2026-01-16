@@ -836,24 +836,6 @@ Commander::handle_command(const vehicle_command_s &cmd)
 			uint8_t desired_nav_state = vehicle_status_s::NAVIGATION_STATE_MAX;
 			transition_result_t main_ret = TRANSITION_NOT_CHANGED;
 
-			// CUSTOM PRISMA MARINE
-
-			uORB::SubscriptionData<actuator_armed_s> actuator_armed_sub{ORB_ID(actuator_armed)};
-			bool drone_armed = false;
-			if (actuator_armed_sub.updated()) {
-				actuator_armed_s actuator_armed{};
-				actuator_armed_sub.copy(&actuator_armed);
-				drone_armed = actuator_armed.armed;
-			}
-
-			if ((_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL || _vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS || _vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF) && drone_armed) {
-        		mavlink_log_critical(&_mavlink_log_pub, "Mode switch denied: Marine mode locked while armed\t");
-        		events::send(events::ID("commander_prisma_marine_mode_locked"), events::Log::Critical, "Mode switch denied: Marine mode locked while armed");
-        		answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_DENIED);
-       			 return true;
-			}
-			// END CUSTOM
-
 			if (base_mode & VEHICLE_MODE_FLAG_CUSTOM_MODE_ENABLED) {
 				/* use autopilot-specific mode */
 				if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_MANUAL) {
@@ -976,6 +958,23 @@ Commander::handle_command(const vehicle_command_s &cmd)
 					}
 				}
 			}
+
+			// CUSTOM PRISMA MARINE
+			if (desired_nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL
+			    || desired_nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS
+			    || desired_nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF) {
+				const bool drone_armed = isArmed();
+				const bool drone_landed = _vehicle_land_detected.maybe_landed;
+
+				if (drone_armed || !drone_landed) {
+					mavlink_log_critical(&_mavlink_log_pub, "Mode switch denied: Marine mode requires landed and disarmed\t");
+					events::send(events::ID("commander_prisma_marine_mode_locked"), events::Log::Critical,
+						     "Mode switch denied: Marine mode requires landed and disarmed");
+					answer_command(cmd, vehicle_command_ack_s::VEHICLE_CMD_RESULT_DENIED);
+					return true;
+				}
+			}
+			// END CUSTOM
 
 			if (desired_nav_state != vehicle_status_s::NAVIGATION_STATE_MAX) {
 				if (_user_mode_intention.change(desired_nav_state, getSourceFromCommand(cmd))) {
