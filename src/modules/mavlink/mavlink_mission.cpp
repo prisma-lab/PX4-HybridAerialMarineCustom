@@ -48,13 +48,46 @@
 #include <drivers/drv_hrt.h>
 #include <px4_platform_common/defines.h>
 #include <px4_platform_common/events.h>
+// CUSTOM PRISMA MARINE
+#include <parameters/param.h>
+// END CUSTOM
 #include <mathlib/mathlib.h>
 #include <matrix/math.hpp>
 #include <navigator/navigation.h>
 #include <uORB/topics/mission.h>
 #include <uORB/topics/mission_result.h>
+// CUSTOM PRISMA MARINE
+#include <math.h>
+// END CUSTOM
 
 using matrix::wrap_2pi;
+
+// CUSTOM PRISMA MARINE
+namespace {
+bool mission_item_is_marine_waypoint(const mission_item_s *mission_item)
+{
+	static param_t param_nav_mar_alt_thr = param_find("NAV_MAR_ALT_THR");
+
+	if ((mission_item == nullptr) || (mission_item->nav_cmd != NAV_CMD_WAYPOINT) ||
+	    !PX4_ISFINITE(mission_item->altitude)) {
+		return false;
+	}
+
+	if (param_nav_mar_alt_thr == PARAM_INVALID) {
+		return false;
+	}
+
+	float threshold = NAN;
+
+	if ((param_get(param_nav_mar_alt_thr, &threshold) != 0) || !PX4_ISFINITE(threshold)) {
+		return false;
+	}
+
+	return fabsf(mission_item->altitude) <= threshold;
+}
+} // namespace
+// END CUSTOM
+
 
 dm_item_t MavlinkMissionManager::_dataman_id = DM_KEY_WAYPOINTS_OFFBOARD_0;
 bool MavlinkMissionManager::_dataman_init = false;
@@ -1634,15 +1667,23 @@ MavlinkMissionManager::format_mavlink_mission_item(const struct mission_item_s *
 		}
 
 		mavlink_mission_item->z = mission_item->altitude;
+		// CUSTOM PRISMA MARINE
+		//if (mission_item->altitude_is_relative) {
+		if (mission_item_is_marine_waypoint(mission_item)) {
+			if (_int_mode) {
+				mavlink_mission_item->frame = MAV_FRAME_GLOBAL_TERRAIN_ALT_INT;
 
-		if (mission_item->altitude_is_relative) {
+			} else {
+				mavlink_mission_item->frame = MAV_FRAME_GLOBAL_TERRAIN_ALT;
+			}
+	    } else if (mission_item->altitude_is_relative) {
 			if (_int_mode) {
 				mavlink_mission_item->frame = MAV_FRAME_GLOBAL_RELATIVE_ALT_INT;
 
 			} else {
 				mavlink_mission_item->frame = MAV_FRAME_GLOBAL_RELATIVE_ALT;
 			}
-
+		// END CUSTOM
 		} else {
 			if (_int_mode) {
 				mavlink_mission_item->frame = MAV_FRAME_GLOBAL_INT;
