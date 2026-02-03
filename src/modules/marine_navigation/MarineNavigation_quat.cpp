@@ -159,16 +159,9 @@ void MarineNavigation::Run()
 		// Computing control inputs for the two propellers
 		control_input = getControlInput(force_input, torque_input);
 
-		// Publish on actuator_servos topic even if not armed
-		// actuator_servos_s actuator_servos{};
-		// actuator_servos.timestamp = hrt_absolute_time();
-		// actuator_servos.control[0] = control_input(0); // Left propeller control input
-		// actuator_servos.control[1] = control_input(1); // Right propeller
-		// _actuator_servos_pub.publish(actuator_servos);	
-
 		// Publish on marine_navigation topic
-		//marine_navigation_s marine_navigation{};
 		marine_navigation.timestamp = hrt_absolute_time();
+		marine_navigation.mode = 1.0f;
 		marine_navigation.q_desired[0] = quat_d(0);
 		marine_navigation.q_desired[1] = quat_d(1);
 		marine_navigation.q_desired[2] = quat_d(2);
@@ -233,6 +226,7 @@ void MarineNavigation::Run()
 
 		//marine_navigation_s marine_navigation{};
 		marine_navigation.timestamp = hrt_absolute_time();
+		marine_navigation.mode = 2.0f;
 		marine_navigation.q_desired[0] = 0;
 		marine_navigation.q_desired[1] = 0;
 		marine_navigation.q_desired[2] = 0;
@@ -270,6 +264,7 @@ void MarineNavigation::Run()
 		PX4_INFO("Control Input - Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
 
 		marine_navigation.timestamp = hrt_absolute_time();
+		marine_navigation.mode = 3.0f;
 		marine_navigation.q_desired[0] = 0;
 		marine_navigation.q_desired[1] = 0;
 		marine_navigation.q_desired[2] = 0;
@@ -614,6 +609,7 @@ void MarineNavigation::Run()
 
 		// ----- POPOLA MESSAGGIO DI DIAGNOSTICA -----
 		marine_navigation.timestamp          = hrt_absolute_time();
+		marine_navigation.mode               = 4.0f;
 		marine_navigation.desired_speed      = U_cmd;
 		marine_navigation.desired_angular_vel= 0.0f;          // non stiamo usando un setpoint esplicito di yaw qui
 		marine_navigation.speed_error        = 0.0f;          // non abbiamo PI sulla speed, ma potresti aggiungerlo se vuoi
