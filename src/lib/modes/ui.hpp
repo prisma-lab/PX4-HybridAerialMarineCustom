@@ -60,9 +60,14 @@ static inline uint32_t getValidNavStates()
 	       (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_FOLLOW_TARGET) |
 	       (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_PRECLAND) |
 	       (1u << vehicle_status_s::NAVIGATION_STATE_ORBIT) |
+	                 // CUSTOM PRISMA
+
+		(1u << vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF) |
+		// END CUSTOM
 	       (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_VTOL_TAKEOFF);
 
-	static_assert(vehicle_status_s::NAVIGATION_STATE_MAX  == 31, "code requires update");
+
+		 static_assert(vehicle_status_s::NAVIGATION_STATE_MAX  == 31, "code requires update");
 }
 
 const char *const nav_state_names[vehicle_status_s::NAVIGATION_STATE_MAX] = {
@@ -94,9 +99,11 @@ const char *const nav_state_names[vehicle_status_s::NAVIGATION_STATE_MAX] = {
 	"External 3",
 	"External 4",
 	"External 5",
-	"External 6",
+	//"External 6",
 	"External 7",
 	"External 8",
+	// CUSTOM PRISMA
+	"Marine Takeoff"
 };
 
 /**
@@ -118,8 +125,8 @@ static inline bool isAdvanced(uint8_t nav_state)
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL4: return false;
 
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL5: return false;
-
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL6: return false;
+		// CUSTOM PRISMA
+	//case vehicle_status_s::NAVIGATION_STATE_EXTERNAL6: return false;
 
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL7: return false;
 

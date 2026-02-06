@@ -365,6 +365,8 @@ int Commander::custom_command(int argc, char *argv[])
 	}
 
 	if (!strcmp(argv[0], "mode")) {
+
+		// END CUSTOM
 		if (argc > 1) {
 
 			if (!strcmp(argv[1], "manual")) {
@@ -408,6 +410,11 @@ int Commander::custom_command(int argc, char *argv[])
 			} else if (!strcmp(argv[1], "auto:precland")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_AUTO,
 						     PX4_CUSTOM_SUB_MODE_AUTO_PRECLAND);
+
+			// CUSTOM PRISMA MARINE
+			}else if (!strcmp(argv[1], "prisma:marine_takeoff")) {
+				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
+						     PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF);
 
 			} else if (!strcmp(argv[1], "ext1")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_AUTO,
@@ -605,8 +612,9 @@ transition_result_t Commander::arm(arm_disarm_reason_t calling_reason, bool run_
 	mavlink_log_info(&_mavlink_log_pub, "Armed by %s\t", arm_disarm_reason_str(calling_reason));
 	events::send<events::px4::enums::arm_disarm_reason_t>(events::ID("commander_armed_by"), events::Log::Info,
 			"Armed by {1}", calling_reason);
-
-	if (_param_com_home_en.get()) {
+	// CUSTOM PRISMA
+	if (_param_com_home_en.get() && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_MARINE_TAKEOFF) {
+	// END CUSTOM
 		_home_position.setHomePosition();
 	}
 
@@ -814,8 +822,12 @@ Commander::handle_command(const vehicle_command_s &cmd)
 							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_AUTO_PRECLAND;
 							break;
 
-						case PX4_CUSTOM_SUB_MODE_EXTERNAL1...PX4_CUSTOM_SUB_MODE_EXTERNAL8:
+						case PX4_CUSTOM_SUB_MODE_EXTERNAL1...PX4_CUSTOM_SUB_MODE_EXTERNAL5:
 							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_EXTERNAL1 + (custom_sub_mode - PX4_CUSTOM_SUB_MODE_EXTERNAL1);
+							break;
+
+						case PX4_CUSTOM_SUB_MODE_EXTERNAL7...PX4_CUSTOM_SUB_MODE_EXTERNAL8:
+							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_EXTERNAL7 + (custom_sub_mode - PX4_CUSTOM_SUB_MODE_EXTERNAL7);
 							break;
 
 						default:
@@ -839,6 +851,22 @@ Commander::handle_command(const vehicle_command_s &cmd)
 				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_OFFBOARD) {
 					desired_nav_state = vehicle_status_s::NAVIGATION_STATE_OFFBOARD;
 				}
+				// CUSTOM PRISMA MARINE
+				else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_PRISMA) {
+					//PX4_INFO("Detected desired PRISMA main state");
+					if (custom_sub_mode > 0) {
+
+						switch (custom_sub_mode) {
+						case PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF:
+							//PX4_INFO("Detected desired MARINE_TAKEOFF sub state");
+							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF;
+							break;
+
+						}
+					}
+				}
+				// END CUSTOM
+
 
 			} else {
 				/* use base mode */
@@ -1770,6 +1798,16 @@ void Commander::run()
 
 		landDetectorUpdate();
 
+
+		// CUSTOM PRISMA MARINE
+		const bool in_prisma_marine =
+			(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF);
+
+		if (in_prisma_marine && (_vehicle_land_detected.landed || _vehicle_land_detected.maybe_landed)) {
+			lock_home_position_update = true;
+		}
+		// END CUSTOM
+
 		safetyButtonUpdate();
 
 		_multicopter_throw_launch.update(isArmed());
@@ -2058,6 +2096,73 @@ void Commander::systemPowerUpdate()
 	}
 }
 
+void Commander::handleAutoDisarm()
+{
+	// Auto disarm when landed or kill switch engaged
+	if (isArmed()) {
+
+		// CUSTOM PRISMA MARINE
+		// Check for auto-disarm on landing or pre-flight
+		if ((_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_MARINE_TAKEOFF)
+			//&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_AUTO_MARINE)
+			&& (_param_com_disarm_land.get() > 0 || _param_com_disarm_preflight.get() > 0)) {
+
+		// END CUSTOM
+			const bool landed_amid_mission = (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION)
+							 && !_mission_result_sub.get().finished;
+
+			const bool auto_disarm_land_enabled = _param_com_disarm_land.get() > 0 && !landed_amid_mission
+							      && !_config_overrides.disable_auto_disarm;
+
+			if (auto_disarm_land_enabled && _have_taken_off_since_arming) {
+				_auto_disarm_landed.set_hysteresis_time_from(false, _param_com_disarm_land.get() * 1_s);
+				_auto_disarm_landed.set_state_and_update(_vehicle_land_detected.landed, hrt_absolute_time());
+
+			} else if (_param_com_disarm_preflight.get() > 0 && !_have_taken_off_since_arming) {
+				_auto_disarm_landed.set_hysteresis_time_from(false, _param_com_disarm_preflight.get() * 1_s);
+				_auto_disarm_landed.set_state_and_update(true, hrt_absolute_time());
+			}
+
+			if (_auto_disarm_landed.get_state() && !_multicopter_throw_launch.isThrowLaunchInProgress()) {
+				if (_have_taken_off_since_arming) {
+					disarm(arm_disarm_reason_t::auto_disarm_land);
+
+				} else {
+					disarm(arm_disarm_reason_t::auto_disarm_preflight);
+				}
+			}
+		}
+
+		// Auto disarm after 5 seconds if kill switch is engaged
+		bool auto_disarm = _actuator_armed.manual_lockdown;
+
+		// auto disarm if locked down to avoid user confusion
+		//  skipped in HITL where lockdown is enabled for safety
+		if (_vehicle_status.hil_state != vehicle_status_s::HIL_STATE_ON) {
+			auto_disarm |= _actuator_armed.lockdown;
+		}
+
+		//don't disarm if throw launch is in progress
+		auto_disarm &= !_multicopter_throw_launch.isThrowLaunchInProgress();
+
+		_auto_disarm_killed.set_state_and_update(auto_disarm, hrt_absolute_time());
+
+		if (_auto_disarm_killed.get_state()) {
+			if (_actuator_armed.manual_lockdown) {
+				disarm(arm_disarm_reason_t::kill_switch, true);
+
+			} else {
+				disarm(arm_disarm_reason_t::lockdown, true);
+			}
+		}
+
+	} else {
+		_auto_disarm_landed.set_state_and_update(false, hrt_absolute_time());
+		_auto_disarm_killed.set_state_and_update(false, hrt_absolute_time());
+	}
+}
+
+
 void Commander::landDetectorUpdate()
 {
 	if (_vehicle_land_detected_sub.updated()) {
@@ -2082,8 +2187,15 @@ void Commander::landDetectorUpdate()
 				// set the home position when taking off
 				if (!_vehicle_land_detected.landed) {
 					if (was_landed) {
-						_home_position.setHomePosition();
-
+						// CUSTOM PRISMA MARINE: avoid updating home position if taking off from sea
+						if(lock_home_position_update) {
+							lock_home_position_update = false;
+						}
+						else{
+							_home_position.setHomePosition();
+						}
+						//_home_position.setHomePosition();
+						// END CUSTOM
 					} else if (_param_com_home_in_air.get()) {
 						_home_position.setInAirHomePosition();
 					}
@@ -2211,66 +2323,7 @@ void Commander::checkWorkerThread()
 	}
 }
 
-void Commander::handleAutoDisarm()
-{
-	// Auto disarm when landed or kill switch engaged
-	if (isArmed()) {
 
-		// Check for auto-disarm on landing or pre-flight
-		if (_param_com_disarm_land.get() > 0 || _param_com_disarm_preflight.get() > 0) {
-
-			const bool landed_amid_mission = (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION)
-							 && !_mission_result_sub.get().finished;
-			const bool auto_disarm_land_enabled = _param_com_disarm_land.get() > 0 && !landed_amid_mission
-							      && !_config_overrides.disable_auto_disarm;
-
-			if (auto_disarm_land_enabled && _have_taken_off_since_arming) {
-				_auto_disarm_landed.set_hysteresis_time_from(false, _param_com_disarm_land.get() * 1_s);
-				_auto_disarm_landed.set_state_and_update(_vehicle_land_detected.landed, hrt_absolute_time());
-
-			} else if (_param_com_disarm_preflight.get() > 0 && !_have_taken_off_since_arming) {
-				_auto_disarm_landed.set_hysteresis_time_from(false, _param_com_disarm_preflight.get() * 1_s);
-				_auto_disarm_landed.set_state_and_update(true, hrt_absolute_time());
-			}
-
-			if (_auto_disarm_landed.get_state() && !_multicopter_throw_launch.isThrowLaunchInProgress()) {
-				if (_have_taken_off_since_arming) {
-					disarm(arm_disarm_reason_t::auto_disarm_land);
-
-				} else {
-					disarm(arm_disarm_reason_t::auto_disarm_preflight);
-				}
-			}
-		}
-
-		// Auto disarm after 5 seconds if kill switch is engaged
-		bool auto_disarm = _actuator_armed.manual_lockdown;
-
-		// auto disarm if locked down to avoid user confusion
-		//  skipped in HITL where lockdown is enabled for safety
-		if (_vehicle_status.hil_state != vehicle_status_s::HIL_STATE_ON) {
-			auto_disarm |= _actuator_armed.lockdown;
-		}
-
-		//don't disarm if throw launch is in progress
-		auto_disarm &= !_multicopter_throw_launch.isThrowLaunchInProgress();
-
-		_auto_disarm_killed.set_state_and_update(auto_disarm, hrt_absolute_time());
-
-		if (_auto_disarm_killed.get_state()) {
-			if (_actuator_armed.manual_lockdown) {
-				disarm(arm_disarm_reason_t::kill_switch, true);
-
-			} else {
-				disarm(arm_disarm_reason_t::lockdown, true);
-			}
-		}
-
-	} else {
-		_auto_disarm_landed.set_state_and_update(false, hrt_absolute_time());
-		_auto_disarm_killed.set_state_and_update(false, hrt_absolute_time());
-	}
-}
 
 bool Commander::handleModeIntentionAndFailsafe()
 {
