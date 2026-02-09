@@ -52,7 +52,7 @@ enum PX4_CUSTOM_MAIN_MODE {
 	PX4_CUSTOM_MAIN_MODE_RATTITUDE_LEGACY,
 	PX4_CUSTOM_MAIN_MODE_SIMPLE, /* unused, but reserved for future use */
 	PX4_CUSTOM_MAIN_MODE_TERMINATION,
-	// CUSTOM PRISMA MARINE
+	// CUSTOM PRISMA MARINE TAKEOFF
 	PX4_CUSTOM_MAIN_MODE_PRISMA
 	// END CUSTOM
 };
@@ -84,7 +84,7 @@ enum PX4_CUSTOM_SUB_MODE_POSCTL {
 };
 
 
-// CUSTOM PRISMA MARINE
+// CUSTOM PRISMA MARINE TAKEOFF
 enum PX4_CUSTOM_SUB_MODE_PRISMA {
 	PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF
 
@@ -231,6 +231,13 @@ static inline union px4_custom_mode get_px4_custom_mode(uint8_t nav_state)
 		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
 		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL8;
 		break;
+
+	// CUSTOM PRISMA MARINE TAKEOFF
+	case vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF:
+		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_PRISMA;
+		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF;
+		break;
+	// END CUSTOM
 	}
 
 	return custom_mode;

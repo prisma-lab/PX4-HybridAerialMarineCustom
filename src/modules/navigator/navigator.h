@@ -349,7 +349,8 @@ private:
 	Land		_land;			/**< class for handling land commands */
 	PrecLand	_precland;			/**< class for handling precision land commands */
 	RTL 		_rtl;				/**< class that handles RTL */
-	AdsbConflict 	_adsb_conflict;			/**< class that handles ADSB conflict avoidance */
+	AdsbConflict 	_adsb_conflict;
+				/**< class that handles marine navigation */
 
 	NavigatorMode *_navigation_mode{nullptr};	/**< abstract pointer to current navigation mode class */
 	NavigatorMode *_navigation_mode_array[NAVIGATOR_MODE_ARRAY_SIZE] {};	/**< array of navigation modes */

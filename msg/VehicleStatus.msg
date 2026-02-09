@@ -62,8 +62,9 @@ uint8 NAVIGATION_STATE_EXTERNAL7 = 29
 uint8 NAVIGATION_STATE_EXTERNAL8 = 30
 uint8 NAVIGATION_STATE_MAX = 31
 
-## CUSTOM PRISMA
+## CUSTOM PRISMA   MARINE TAKEOFF
 uint8 NAVIGATION_STATE_MARINE_TAKEOFF = 28  # 37
+## END CUSTOM
 
 uint8 executor_in_charge                        # Current mode executor in charge (0=Autopilot)
 

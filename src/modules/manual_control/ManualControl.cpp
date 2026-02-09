@@ -570,6 +570,9 @@ int8_t ManualControl::navStateFromParam(int32_t param_value)
 		case 14: return vehicle_status_s::NAVIGATION_STATE_ORBIT;
 		case 15: return vehicle_status_s::NAVIGATION_STATE_AUTO_VTOL_TAKEOFF;
 
+		// CUSTOM PRISMA MARINE TAKEOFF
+		case 37: return vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF;
+		// END CUSTOM
 		case 100: return vehicle_status_s::NAVIGATION_STATE_EXTERNAL1;
 		case 101: return vehicle_status_s::NAVIGATION_STATE_EXTERNAL2;
 		case 102: return vehicle_status_s::NAVIGATION_STATE_EXTERNAL3;

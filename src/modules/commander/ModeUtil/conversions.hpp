@@ -92,8 +92,8 @@ static inline navigation_mode_t navigation_mode(uint8_t nav_state)
 
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL8: return navigation_mode_t::external8;
 
-	// CUSTOM PRISMA MARINE
-	case vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF: return navigation_mode_t::auto_takeoff;
+	// CUSTOM PRISMA MARINE TAKEOFF
+	case vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF: return navigation_mode_t::marine_takeoff;
 	}
 
 	static_assert(vehicle_status_s::NAVIGATION_STATE_MAX  == 31, "code requires update");

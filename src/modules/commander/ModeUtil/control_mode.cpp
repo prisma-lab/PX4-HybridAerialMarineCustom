@@ -48,6 +48,21 @@ void getVehicleControlMode(uint8_t nav_state, uint8_t vehicle_type,
 {
 
 	switch (nav_state) {
+
+		// CUSTOM PRISMA MARINE TAKEOFF
+	case vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF:
+		vehicle_control_mode.flag_control_auto_enabled = true;
+		vehicle_control_mode.flag_control_marine_takeoff_enabled = true;
+
+		vehicle_control_mode.flag_control_position_enabled = true;
+		vehicle_control_mode.flag_control_velocity_enabled = true;
+		vehicle_control_mode.flag_control_altitude_enabled = true;
+		vehicle_control_mode.flag_control_climb_rate_enabled = true;
+		vehicle_control_mode.flag_control_acceleration_enabled = true;
+		vehicle_control_mode.flag_control_rates_enabled = true;
+		vehicle_control_mode.flag_control_attitude_enabled = true;
+		break;
+	// END CUSTOM
 	case vehicle_status_s::NAVIGATION_STATE_MANUAL:
 		vehicle_control_mode.flag_control_manual_enabled = true;
 		vehicle_control_mode.flag_control_rates_enabled = stabilization_required(vehicle_type);

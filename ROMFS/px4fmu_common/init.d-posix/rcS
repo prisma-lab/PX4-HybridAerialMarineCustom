@@ -255,6 +255,9 @@ rc_update start
 manual_control start
 sensors start
 commander start
+# CUSTOM
+marine_navigation start
+# END CUSTOM
 
 if ! pwm_out_sim start -m sim
 then

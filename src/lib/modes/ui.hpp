@@ -60,7 +60,7 @@ static inline uint32_t getValidNavStates()
 	       (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_FOLLOW_TARGET) |
 	       (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_PRECLAND) |
 	       (1u << vehicle_status_s::NAVIGATION_STATE_ORBIT) |
-	                 // CUSTOM PRISMA
+	                 // CUSTOM PRISMA  MARINE TAKEOFF
 
 		(1u << vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF) |
 		// END CUSTOM
@@ -102,8 +102,9 @@ const char *const nav_state_names[vehicle_status_s::NAVIGATION_STATE_MAX] = {
 	//"External 6",
 	"External 7",
 	"External 8",
-	// CUSTOM PRISMA
+	// CUSTOM PRISMA MARINE TAKEOFF
 	"Marine Takeoff"
+	// END CUSTOM
 };
 
 /**
@@ -125,8 +126,9 @@ static inline bool isAdvanced(uint8_t nav_state)
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL4: return false;
 
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL5: return false;
-		// CUSTOM PRISMA
+		// CUSTOM PRISMA MARINE TAKEOFF
 	//case vehicle_status_s::NAVIGATION_STATE_EXTERNAL6: return false;
+	// END CUSTOM
 
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL7: return false;
 

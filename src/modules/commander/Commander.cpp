@@ -411,10 +411,11 @@ int Commander::custom_command(int argc, char *argv[])
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_AUTO,
 						     PX4_CUSTOM_SUB_MODE_AUTO_PRECLAND);
 
-			// CUSTOM PRISMA MARINE
+			// CUSTOM PRISMA MARINE TAKEOFF
 			}else if (!strcmp(argv[1], "prisma:marine_takeoff")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
 						     PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF);
+			// END CUSTOM
 
 			} else if (!strcmp(argv[1], "ext1")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_AUTO,
@@ -612,7 +613,7 @@ transition_result_t Commander::arm(arm_disarm_reason_t calling_reason, bool run_
 	mavlink_log_info(&_mavlink_log_pub, "Armed by %s\t", arm_disarm_reason_str(calling_reason));
 	events::send<events::px4::enums::arm_disarm_reason_t>(events::ID("commander_armed_by"), events::Log::Info,
 			"Armed by {1}", calling_reason);
-	// CUSTOM PRISMA
+	// CUSTOM PRISMA  MARINE TAKEOFF
 	if (_param_com_home_en.get() && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_MARINE_TAKEOFF) {
 	// END CUSTOM
 		_home_position.setHomePosition();
@@ -851,14 +852,14 @@ Commander::handle_command(const vehicle_command_s &cmd)
 				} else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_OFFBOARD) {
 					desired_nav_state = vehicle_status_s::NAVIGATION_STATE_OFFBOARD;
 				}
-				// CUSTOM PRISMA MARINE
+				// CUSTOM PRISMA MARINE TAKEOFF
 				else if (custom_main_mode == PX4_CUSTOM_MAIN_MODE_PRISMA) {
 					//PX4_INFO("Detected desired PRISMA main state");
 					if (custom_sub_mode > 0) {
 
 						switch (custom_sub_mode) {
 						case PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF:
-							//PX4_INFO("Detected desired MARINE_TAKEOFF sub state");
+							PX4_INFO("Detected desired MARINE_TAKEOFF sub state");
 							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF;
 							break;
 
@@ -1799,7 +1800,7 @@ void Commander::run()
 		landDetectorUpdate();
 
 
-		// CUSTOM PRISMA MARINE
+		// CUSTOM PRISMA MARINE TAKEOFF
 		const bool in_prisma_marine =
 			(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF);
 
@@ -2101,7 +2102,7 @@ void Commander::handleAutoDisarm()
 	// Auto disarm when landed or kill switch engaged
 	if (isArmed()) {
 
-		// CUSTOM PRISMA MARINE
+		// CUSTOM PRISMA MARINE TAKEOFF
 		// Check for auto-disarm on landing or pre-flight
 		if ((_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_MARINE_TAKEOFF)
 			//&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_AUTO_MARINE)
@@ -2187,7 +2188,7 @@ void Commander::landDetectorUpdate()
 				// set the home position when taking off
 				if (!_vehicle_land_detected.landed) {
 					if (was_landed) {
-						// CUSTOM PRISMA MARINE: avoid updating home position if taking off from sea
+						// CUSTOM PRISMA MARINE TAKEOFF: avoid updating home position if taking off from sea
 						if(lock_home_position_update) {
 							lock_home_position_update = false;
 						}

@@ -16,6 +16,10 @@ bool flag_control_climb_rate_enabled		# true if climb rate is controlled
 bool flag_control_termination_enabled		# true if flighttermination is enabled
 bool flag_control_allocation_enabled		# true if control allocation is enabled
 
+## CUSTOM  PRISMA MARINE TAKEOFF
+bool flag_control_marine_takeoff_enabled	 # true if PRISMA marine takeoff is enabled
+# END CUSTOM
+
 # TODO: use dedicated topic for external requests
 uint8 source_id                  # Mode ID (nav_state)
 
