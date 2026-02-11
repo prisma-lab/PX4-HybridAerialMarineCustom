@@ -1,0 +1,5 @@
+menuconfig MODULES_MARINE_TAKEOFF
+	bool "marine_takeoff"
+	default n
+	---help---
+		Enable support for marine_takeoff

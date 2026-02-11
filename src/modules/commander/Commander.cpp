@@ -412,7 +412,7 @@ int Commander::custom_command(int argc, char *argv[])
 						     PX4_CUSTOM_SUB_MODE_AUTO_PRECLAND);
 
 			// CUSTOM PRISMA MARINE TAKEOFF
-			}else if (!strcmp(argv[1], "prisma:marine_takeoff")) {
+			}else if (!strcmp(argv[1], "marine_takeoff")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
 						     PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF);
 			// END CUSTOM
