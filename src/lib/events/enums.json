@@ -604,6 +604,14 @@
                             "name": "prisma_marine_manual",
                             "description": "PRISMA Marine Manual Navigation"
                         },
+                        "34": {
+                            "name": "prisma_marine_manual_ts",
+                            "description": "PRISMA Marine Manual Navigation TS"
+                        },
+                        "35": {
+                            "name": "prisma_marine_manual_ff",
+                            "description": "PRISMA Marine Manual Navigation FF"
+                        },
                         "255": {
                             "name": "unknown",
                             "description": "[Unknown]"
