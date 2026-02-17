@@ -47,6 +47,9 @@
 #include <uORB/topics/vehicle_control_mode.h>
 #include <uORB/topics/vehicle_thrust_setpoint.h>
 #include <uORB/topics/takeoff_status.h>
+// CUSTOM PRISMA MARINE AUTO
+#include <uORB/topics/mission_result.h>
+// END CUSTOM
 
 #include "LandDetector.h"
 
@@ -111,6 +114,11 @@ private:
 
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
 	uORB::Subscription _takeoff_status_sub{ORB_ID(takeoff_status)};
+
+	// CUSTOM PRISMA MARINE AUTO To check if we are landing on water
+	uORB::Subscription _mission_result_sub{ORB_ID(mission_result)};
+	bool landing_on_water{false};
+	// END CUSTOM
 
 	hrt_abstime _hover_thrust_estimate_last_valid{0};
 	bool _hover_thrust_estimate_valid{false};

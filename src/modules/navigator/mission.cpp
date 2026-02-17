@@ -74,12 +74,6 @@ Mission::on_inactive()
 {
 	_vehicle_status_sub.update();
 
-	// CUSTOM PRISMA MARINE AUTO
-	// Reset marine state request when mission is not running
-	// _marine_phase = MarinePhase::MARINE_IDLE;
-	// publish_marine_active_state(false);
-	// END CUSTOM
-
 	if (_need_mission_save && _vehicle_status_sub.get().arming_state != vehicle_status_s::ARMING_STATE_ARMED) {
 		save_mission_state();
 	}

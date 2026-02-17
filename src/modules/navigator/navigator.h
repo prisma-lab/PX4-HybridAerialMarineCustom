@@ -49,9 +49,6 @@
 #include "navigator_mode.h"
 #include "rtl.h"
 #include "takeoff.h"
-// CUSTOM PRISMA MARINE
-#include "prisma_marine.h"
-// END CUSTOM
 #if CONFIG_MODE_NAVIGATOR_VTOL_TAKEOFF
 #include "vtol_takeoff.h"
 #endif //CONFIG_MODE_NAVIGATOR_VTOL_TAKEOFF
@@ -356,9 +353,6 @@ private:
 	Land		_land;			/**< class for handling land commands */
 	PrecLand	_precland;			/**< class for handling precision land commands */
 	RTL 		_rtl;				/**< class that handles RTL */
-	// CUSTOM PRISMA MARINE
-	Marine		_marine;			/**< class that handles MARINE */
-	// END CUSTOM
 	AdsbConflict 	_adsb_conflict;			/**< class that handles ADSB conflict avoidance */
 
 	NavigatorMode *_navigation_mode{nullptr};	/**< abstract pointer to current navigation mode class */

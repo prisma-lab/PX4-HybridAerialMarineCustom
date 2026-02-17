@@ -18,7 +18,7 @@ MarineNavigation::~MarineNavigation()
 
 bool MarineNavigation::init()
 {
-	ScheduleOnInterval(100_ms); // 10Hz
+	ScheduleOnInterval(20_ms); // 50Hz
 	return true;
 }
 
@@ -52,6 +52,22 @@ void MarineNavigation::Run()
 		left_th_y = _param_marine_l_y.get();
 		right_th_x = _param_marine_r_x.get();
 		right_th_y = _param_marine_r_y.get();
+		// Parameters for auto mission
+		l_pf = _param_auto_lpf.get();
+		k_px = _param_auto_k_px.get();
+		k_py = _param_auto_k_py.get();
+		k_vx = _param_auto_k_vx.get();
+		k_vy = _param_auto_k_vy.get();
+		k_Ix = _param_auto_k_Ix.get();
+		k_Iy = _param_auto_k_Iy.get();
+		k_il = _param_auto_k_il.get();
+		I_max = _param_auto_i_max.get();
+		k_c = _param_auto_k_c.get();
+		k_cl = _param_auto_k_cl.get();
+		vc_max = _param_auto_vc_max.get();
+		vmin_adapt = _param_auto_vmin_adapt.get();
+		v_cruise_auto = _param_v_cruise_auto.get();
+		d_slow_auto = _param_d_slow_auto.get();
 	}
 
 	float dt{0.01f}; // Default time step for integration
@@ -183,22 +199,19 @@ void MarineNavigation::Run()
 		marine_navigation.torque_input = torque_input;
 		marine_navigation.angular_error = 2.0f * acosf(fabsf(quat_error(0)));
 
-		//_marine_navigation_pub.publish(marine_navigation);
-
-		// PX4_INFO printing
-		PX4_INFO("Y fb: %.2f, YR fb: %.2f, Vx fb: %.2f", (double)rpy(2), (double)yaw_rate_fb, (double)v_x);
-		PX4_INFO("Vx input: %.2f, Omega z input: %.2f", (double)(rc_input.throttle*max_propeller_speed), (double)computeOmegaInput(rc_input.roll));
-		PX4_INFO("Vx error: %.2f, Omega z error: %.2f", (double)(rc_input.throttle*max_propeller_speed - v_x), (double)(computeOmegaInput(rc_input.roll) - yaw_rate_fb));
-		PX4_INFO("quat_d [0]: %.2f, quat_fb [0]: %.2f", (double)quat_d(0), (double)quat_fb(0));
-		PX4_INFO("quat_d [3]: %.2f, quat_fb [3]: %.2f", (double)quat_d(3), (double)quat_fb(3));
-		PX4_INFO("Quat error [0]: %.2f, Quat error [3]: %.2f, YR error : %.2f", (double)quat_error(0), (double)quat_error(3), (double)(omega_d(2) - yaw_rate_fb));
-		PX4_INFO("Omega d: %.2f, %.2f, %.2f", (double)omega_d(0), (double)omega_d(1), (double)omega_d(2));
-		PX4_INFO("angular error: %.2f", (double)(2.0f * acosf(fabsf(quat_error(0)))));
-		PX4_INFO("Throttle: %.2f, Roll input : %.2f, Force input: %.2f, Torque Input: %.2f", (double)rc_input.throttle, (double)rc_input.roll, (double)force_input, (double)torque_input);
-		PX4_INFO("Control Input Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
+		// UNCOMMENT FOR  LIVE INFO AND DEBUGGING
+		// PX4_INFO("Y fb: %.2f, YR fb: %.2f, Vx fb: %.2f", (double)rpy(2), (double)yaw_rate_fb, (double)v_x);
+		// PX4_INFO("Vx input: %.2f, Omega z input: %.2f", (double)(rc_input.throttle*max_propeller_speed), (double)computeOmegaInput(rc_input.roll));
+		// PX4_INFO("Vx error: %.2f, Omega z error: %.2f", (double)(rc_input.throttle*max_propeller_speed - v_x), (double)(computeOmegaInput(rc_input.roll) - yaw_rate_fb));
+		// PX4_INFO("quat_d [0]: %.2f, quat_fb [0]: %.2f", (double)quat_d(0), (double)quat_fb(0));
+		// PX4_INFO("quat_d [3]: %.2f, quat_fb [3]: %.2f", (double)quat_d(3), (double)quat_fb(3));
+		// PX4_INFO("Quat error [0]: %.2f, Quat error [3]: %.2f, YR error : %.2f", (double)quat_error(0), (double)quat_error(3), (double)(omega_d(2) - yaw_rate_fb));
+		// PX4_INFO("Omega d: %.2f, %.2f, %.2f", (double)omega_d(0), (double)omega_d(1), (double)omega_d(2));
+		// PX4_INFO("angular error: %.2f", (double)(2.0f * acosf(fabsf(quat_error(0)))));
+		// PX4_INFO("Throttle: %.2f, Roll input : %.2f, Force input: %.2f, Torque Input: %.2f", (double)rc_input.throttle, (double)rc_input.roll, (double)force_input, (double)torque_input);
+		// PX4_INFO("Control Input Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
 	}
 	else if (vehicle_control_mode.flag_control_prisma_marine_manual_ts_enabled) {
-		// Similar implementation for TS control mode can be added here
 
 		float thrust = rc_input.throttle;
 		float steering = rc_input.roll;
@@ -214,15 +227,16 @@ void MarineNavigation::Run()
 		else if (steering > 0.01f)
 		{
 			control_input(0) = thrust;
-			control_input(1) = -(thrust +1)*steering +1;
+			control_input(1) = -(thrust +1)*steering +thrust;
 		} else {
-			control_input(0) = (thrust +1)*steering +1;
+			control_input(0) = (thrust +1)*steering +thrust;
 			control_input(1) = thrust;
 		}
 
-		// Print joystick input and controls
-		PX4_INFO("Joystick Input - Throttle: %.2f, Roll: %.2f", (double)rc_input.throttle, (double)rc_input.roll);
-		PX4_INFO("Control Input - Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
+		// UNCOMMENT FOR  LIVE INFO AND DEBUGGING
+		// // Print joystick input and controls
+		// PX4_INFO("Joystick Input - Throttle: %.2f, Roll: %.2f", (double)rc_input.throttle, (double)rc_input.roll);
+		// PX4_INFO("Control Input - Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
 
 		//marine_navigation_s marine_navigation{};
 		marine_navigation.timestamp = hrt_absolute_time();
@@ -248,8 +262,6 @@ void MarineNavigation::Run()
 		marine_navigation.torque_input = 0;
 		marine_navigation.angular_error = 0;
 
-		// _marine_navigation_pub.publish(marine_navigation);
-
 		// Reset variables
 		if (module_initialization) {
 			module_initialization = false; // Reset initialization flag
@@ -261,7 +273,8 @@ void MarineNavigation::Run()
 		if(fabs(rc_input.pitch) < 0.09f) control_input(1) = 0.0f;
 		else control_input = Vector2f(rc_input.throttle, rc_input.pitch);
 		
-		PX4_INFO("Control Input - Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
+		// UNCOMMENT FOR  LIVE INFO AND DEBUGGING
+		// PX4_INFO("Control Input - Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
 
 		marine_navigation.timestamp = hrt_absolute_time();
 		marine_navigation.mode = 3.0f;
@@ -287,9 +300,7 @@ void MarineNavigation::Run()
 		marine_navigation.angular_error = 0;
 	}
 	else if(vehicle_control_mode.flag_control_prisma_auto_marine_enabled && _pos_sp_triplet.current.valid) {
-		// ============================================================================
-		// Get updates
-		// ============================================================================
+
 		if (_vehicle_attitude_sub.updated()) {
 			_vehicle_attitude_sub.copy(&vehicle_attitude);
 			rpy = getRPY(Quatf(vehicle_attitude.q));
@@ -303,9 +314,7 @@ void MarineNavigation::Run()
 			_vehicle_local_position_sub.copy(&vehicle_local_position);
 		}
 
-		// ============================================================================
-		// Global local poasition projection initialization
-		// ============================================================================
+		// Local position initialization and validity check
 		if (vehicle_local_position.xy_global
 			&& (!_global_local_proj_ref.isInitialized()
 				|| _global_local_proj_ref.getProjectionReferenceTimestamp() != vehicle_local_position.ref_timestamp)) {
@@ -323,42 +332,8 @@ void MarineNavigation::Run()
 			return;
 		}
 
-		// ============================================================================
-		// Controller parameters 
-		// ============================================================================
-		const float l_pf  = 1.5f;   // distance hand-point forward [m]
-
-		const float k_px  = 0.7f;
-		const float k_py  = 0.7f;
-
-		const float k_vx  = 1.0f;
-		const float k_vy  = 1.0f;
-
-		const float k_Ix  = 0.05f;
-		const float k_Iy  = 0.05f;
-
-		// Anti-windup integratore posizione (metti piccoli e poi tarali)
-		constexpr float k_il  = 0.15f;   // leakage (1/s) integrale
-		constexpr float I_max = 1.5f;    // clamp su integrale [m*s]
-
-		// Stima corrente (observer lento)
-		constexpr float k_c      = 0.25f; // adattamento corrente
-		constexpr float k_cl     = 0.02f; // leakage corrente
-		constexpr float vc_max   = 2.0f;  // saturazione corrente stimata [m/s]
-		constexpr float vmin_adapt = 0.5f;
-
-		// ============================================================================
-		// 4) Stati persistenti: parametro s e integrali + stima corrente
-		// ============================================================================
-		// static float s_pf   = 1.0f;  // ascissa curvilinea (segmento) [m]
-		// static float xi1_I  = 0.0f;  // integrale errore posizione xi1 [m*s]
-		// static float xi2_I  = 0.0f;  // integrale errore posizione xi2 [m*s]
-
-		// static float vc_hat_x = 0.0f; // corrente stimata (frame locale) [m/s]
-		// static float vc_hat_y = 0.0f;
-
 		if(new_pos_sp_triplet) {
-			// Reset integratori e ascissa curvilinea
+			// Reset each new waypoint
 			s_pf    = 1.0f;
 			xi1_I   = 0.0f;
 			xi2_I   = 0.0f;
@@ -367,9 +342,7 @@ void MarineNavigation::Run()
 			new_pos_sp_triplet = false;
 		}
 
-		// ============================================================================
 		// Waypoint in local frame
-		// ============================================================================
 		const float yaw = rpy(2);
 		yaw_rate_fb = vehicle_angular_velocity.xyz[2];
 
@@ -384,9 +357,7 @@ void MarineNavigation::Run()
 									_pos_sp_triplet.previous.lon);
 		}
 
-		// ============================================================================
 		// Path tangent vector
-		// ============================================================================
 		Vector2f path_vec = curr_wp_local - prev_wp_local;
 		const float path_len = path_vec.norm();
 
@@ -398,9 +369,7 @@ void MarineNavigation::Run()
 
 		const Vector2f t_hat = path_vec / path_len; // tangente unitaria
 
-		// ============================================================================
-		// 7) Hand-point (xi1, xi2)
-		// ============================================================================
+		// Hand-point (xi1, xi2)
 		const float cos_yaw = cosf(yaw);
 		const float sin_yaw = sinf(yaw);
 
@@ -410,9 +379,7 @@ void MarineNavigation::Run()
 		const float xi1 = x + l_pf * cos_yaw;
 		const float xi2 = y + l_pf * sin_yaw;
 
-		// ============================================================================
 		// Reference point on path and error with reference hand-point
-		// ============================================================================
 		const float x_gamma = prev_wp_local(0) + t_hat(0) * s_pf;
 		const float y_gamma = prev_wp_local(1) + t_hat(1) * s_pf;
 
@@ -420,9 +387,7 @@ void MarineNavigation::Run()
 		const float tilde_xi2 = xi2 - y_gamma;
 		const float e_h_sq    = tilde_xi1 * tilde_xi1 + tilde_xi2 * tilde_xi2;
 
-		// ============================================================================
-		// Velocity profile near waypoimt
-		// ============================================================================
+		// Adjust velocity near target
 		double current_lat{};
 		double current_lon{};
 		_global_local_proj_ref.reproject(curr_pos_local(0), curr_pos_local(1), current_lat, current_lon);
@@ -430,39 +395,32 @@ void MarineNavigation::Run()
 		const float dist_target = get_distance_to_next_waypoint(current_lat, current_lon,
 									_pos_sp_triplet.current.lat, _pos_sp_triplet.current.lon);
 
-		float U_cmd = _v_cruise_auto;
-		if (dist_target < _d_slow_auto) {
-			U_cmd = _v_cruise_auto * (dist_target / _d_slow_auto);
+		float U_cmd = v_cruise_auto;
+		if (dist_target < d_slow_auto) {
+			U_cmd = v_cruise_auto * (dist_target / d_slow_auto);
 			U_cmd = math::max(U_cmd, 0.3f);
 		}
 
-		// ============================================================================
-		// Arc length update
-		// ============================================================================
+		// Arclength update
 		const float s_dot = U_cmd * (1.0f - tanhf(e_h_sq));
 
 		s_pf += s_dot * dt;
 		s_pf = math::constrain(s_pf, 0.0f, path_len);
 
-		// Punto desiderato sul path: (x_d, y_d)
 		const float x_d = prev_wp_local(0) + t_hat(0) * s_pf;
 		const float y_d = prev_wp_local(1) + t_hat(1) * s_pf;
 
-		// Derivate rispetto a s per segmento rettilineo
 		const float x_s = t_hat(0);
 		const float y_s = t_hat(1);
 
-		// Velocità desiderata del punto sul path
 		const float x_dot_d = s_dot * x_s;
 		const float y_dot_d = s_dot * y_s;
 
-		// Feedforward curvatura: segmento rettilineo
-		const float x_ddot_star = 0.0f;
-		const float y_ddot_star = 0.0f;
+		// TO DO: for curved paths
+		//const float x_ddot_star = 0.0f;
+		//const float y_ddot_star = 0.0f;
 
-		// ============================================================================
-		// 11) Velocità hand-point: uso velocità RELATIVE all'acqua (stima corrente)
-		// ============================================================================
+		// Hand-point velocity considering ocean current
 		const float x_dot_g = vehicle_local_position.vx;
 		const float y_dot_g = vehicle_local_position.vy;
 
@@ -472,40 +430,30 @@ void MarineNavigation::Run()
 		const float xi1_dot = x_dot_rel - l_pf * sin_yaw * yaw_rate_fb;
 		const float xi2_dot = y_dot_rel + l_pf * cos_yaw * yaw_rate_fb;
 
-		// Nel paper: xi3, xi4 = velocità hand-point relative al fluido
 		const float xi3 = xi1_dot;
 		const float xi4 = xi2_dot;
 
-		// ============================================================================
-		// 12) Errori (stile eq. 59a-59b): posizione e velocità hand-point
-		// ============================================================================
+		// Error quantities
 		const float e1 = xi1 - x_d;
 		const float e2 = xi2 - y_d;
 		const float e3 = xi3 - x_dot_d;
 		const float e4 = xi4 - y_dot_d;
 
-		// ============================================================================
-		// 13) Update stima corrente (observer lento) usando errori di velocità e3/e4
-		//     Nota: puoi sostituire aligned_gate=1 con il tuo gating di allineamento.
-		// ============================================================================
+		// Ocean current estimation
 		const float v_surge = vehicle_local_position.vx * cos_yaw + vehicle_local_position.vy * sin_yaw;
-		float aligned_gate = 1.0f; // <-- collegalo al gating bearing quando lo riattivi
+		float aligned_gate = 1.0f; 
 
 		Vector2f v_g(vehicle_local_position.vx, vehicle_local_position.vy);
 		const float v_norm = v_g.norm();
 
 		if (v_norm > vmin_adapt) {
 
-			// direzione della velocità ground (unitaria)
 			const Vector2f v_g_hat = v_g / v_norm;
 
-			// coseno tra direzione moto e tangente del path  [-1, 1]
 			const float cos_align = v_g_hat.dot(t_hat);
 
-			// gate in [0,1] (stima ON solo se vai "in avanti" lungo il path)
 			aligned_gate = math::max(0.0f, cos_align);
 
-			// opzionale: più selettivo (spegne prima quando sei poco allineato)
 			aligned_gate *= aligned_gate;
 		}
 
@@ -521,39 +469,30 @@ void MarineNavigation::Run()
 			vc_hat_y = math::constrain(vc_hat_y, -vc_max, vc_max);
 		}
 
-		// ============================================================================
-		// 14) Azione integrale con anti-windup (leakage + clamp + gating)
-		// ============================================================================
+		// Integral actioion
 		const bool integrate_ok = (aligned_gate > 0.75f) && (s_dot > 0.02f) && (fabsf(v_surge) > 0.1f);
 
 		if (integrate_ok) {
-			// integratore "stabile": I_dot = e - k_il*I
 			xi1_I += (e1 - k_il * xi1_I) * dt;
 			xi2_I += (e2 - k_il * xi2_I) * dt;
 		} else {
-			// quando non conviene integrare: scarico dolce
 			xi1_I += (-k_il * xi1_I) * dt;
 			xi2_I += (-k_il * xi2_I) * dt;
 		}
 
-		// clamp anti-windup duro
 		xi1_I = math::constrain(xi1_I, -I_max, I_max);
 		xi2_I = math::constrain(xi2_I, -I_max, I_max);
 
-		// ============================================================================
-		// 15) Controllo virtuale mu (path-following) + feedforward
-		// ============================================================================
-		const float mu1 = -k_vx * e3 - k_px * e1 - k_Ix * xi1_I + x_ddot_star;
-		const float mu2 = -k_vy * e4 - k_py * e2 - k_Iy * xi2_I + y_ddot_star;
+		// Virtual intputs computation
+		const float mu1 = -k_vx * e3 - k_px * e1 - k_Ix * xi1_I; // + x_ddot_star;
+		const float mu2 = -k_vy * e4 - k_py * e2 - k_Iy * xi2_I; // + y_ddot_star;
 
-		// ============================================================================
-		// 16) Feedback linearization: tau = Rh^{-1} (mu - F_xi)
-		// ============================================================================
+		// Feedback linearization 
 		SquareMatrix<float, 2> Rh;
 		Rh(0,0) =  cos_yaw;           Rh(0,1) = -l_pf * sin_yaw;
 		Rh(1,0) =  sin_yaw;           Rh(1,1) =  l_pf * cos_yaw;
 
-		// ---- calcolo F_xi3, F_xi4 (modello dinamico semplificato come nel tuo codice) ----
+		// F_xi3, F_xi4 (simplyfied dynamic model)
 		const float cpsi = cos_yaw;
 		const float spsi = sin_yaw;
 		const float r    = yaw_rate_fb;
@@ -583,48 +522,40 @@ void MarineNavigation::Run()
 		const float mu_minus_F_1 = mu1 - F_xi3;
 		const float mu_minus_F_2 = mu2 - F_xi4;
 
-		// Inversione Rh (2x2)
+		// Thrust and Torque computation
 		const SquareMatrix<float, 2> Rh_inv = Rh.I();
 
 		const float tau_u = Rh_inv(0,0) * mu_minus_F_1 + Rh_inv(0,1) * mu_minus_F_2;
 		const float tau_r = Rh_inv(1,0) * mu_minus_F_1 + Rh_inv(1,1) * mu_minus_F_2;
 
-		// ============================================================================
-		// 17) Allocazione thruster
-		// ============================================================================
 		control_input = getControlInput(tau_u, tau_r);
 
+		// UNCOMMENT FOR  LIVE INFO AND DEBUGGING
+		// // Print mu1, mu2, tau_u, tau_r
+		// PX4_INFO("mu1: %.2f, mu2: %.2f, tau_u: %.2f, tau_r: %.2f", (double)mu1, (double)mu2, (double)tau_u, (double)tau_r);
+		// // Print control inputs
+		// PX4_INFO("Control inputs - Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
+		// // Print position of hand frame and reference point on path
+		// PX4_INFO("Hand point xi1: %.2f, xi2: %.2f, Path point x_d: %.2f, y_d: %.2f", (double)xi1, (double)xi2, (double)x_d, (double)y_d);
 
-		// Print mu1, mu2, tau_u, tau_r
-		PX4_INFO("mu1: %.2f, mu2: %.2f, tau_u: %.2f, tau_r: %.2f", (double)mu1, (double)mu2, (double)tau_u, (double)tau_r);
-		// Print control inputs
-		PX4_INFO("Control inputs - Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));
-		// Print position of hand frame and reference point on path
-		PX4_INFO("Hand point xi1: %.2f, xi2: %.2f, Path point x_d: %.2f, y_d: %.2f", (double)xi1, (double)xi2, (double)x_d, (double)y_d);
-
-		// ----- DEBUG -----
-		// PX4_INFO("PF-FL: e1=%.2f e2=%.2f e3=%.2f e4=%.2f", (double)e1, (double)e2, (double)e3, (double)e4);
-		// PX4_INFO("PF-FL: mu1=%.2f mu2=%.2f tau_u=%.2f tau_r=%.2f", (double)mu1, (double)mu2, (double)tau_u, (double)tau_r);
-		// PX4_INFO("PF-FL: s=%.2f/%0.2f U_cmd=%.2f", (double)s_pf, (double)path_len, (double)U_cmd);
-
-		// ----- POPOLA MESSAGGIO DI DIAGNOSTICA -----
+		// Use message for debug
 		marine_navigation.timestamp          = hrt_absolute_time();
 		marine_navigation.mode               = 4.0f;
 		marine_navigation.desired_speed      = U_cmd;
-		marine_navigation.desired_angular_vel= 0.0f;          // non stiamo usando un setpoint esplicito di yaw qui
-		marine_navigation.speed_error        = 0.0f;          // non abbiamo PI sulla speed, ma potresti aggiungerlo se vuoi
+		marine_navigation.desired_angular_vel= 0.0f;          
+		marine_navigation.speed_error        = 0.0f;          
 		marine_navigation.angular_vel_error  = 0.0f;
 		marine_navigation.omega_desired_z    = 0.0f;
-		marine_navigation.force_input        = 0.0f;
-		marine_navigation.torque_input       = 0.0f;
+		marine_navigation.force_input        = tau_u;
+		marine_navigation.torque_input       = tau_r;
 		marine_navigation.angular_error      = 0.0f;
 
-		marine_navigation.q_desired[0] = 0.f;
-		marine_navigation.q_desired[1] = 0.f;
-		marine_navigation.q_desired[2] = 0.f;
-		marine_navigation.q_desired[3] = 0.f;
-		marine_navigation.q_feedback[0] = 0.f;
-		marine_navigation.q_feedback[1] = 0.f;
+		marine_navigation.q_desired[0] = curr_wp_local(0); 
+		marine_navigation.q_desired[1] = curr_wp_local(1); 
+		marine_navigation.q_desired[2] = x_d;
+		marine_navigation.q_desired[3] = y_d;
+		marine_navigation.q_feedback[0] = curr_pos_local(0);
+		marine_navigation.q_feedback[1] = curr_pos_local(1);
 		marine_navigation.q_feedback[2] = 0.f;
 		marine_navigation.q_feedback[3] = 0.f;
 		marine_navigation.q_error[0]    = 0.f;
@@ -634,16 +565,11 @@ void MarineNavigation::Run()
 	}
 	// If NOT in manual control mode, stop the servos
 	else if(!in_marine_mode) {
-		// actuator_servos_s actuator_servos{};
-		// actuator_servos.timestamp = hrt_absolute_time();
-		// actuator_servos.control[0] = 0; 
-		// actuator_servos.control[1] = 0; 
-		// _actuator_servos_pub.publish(actuator_servos);
 
 		control_input = Vector2f(0.0f, 0.0f);
 		
-		//marine_navigation_s marine_navigation{};
 		marine_navigation.timestamp = hrt_absolute_time();
+		marine_navigation.mode = 0.0f;
 		marine_navigation.q_desired[0] = 0;
 		marine_navigation.q_desired[1] = 0;
 		marine_navigation.q_desired[2] = 0;
@@ -664,8 +590,6 @@ void MarineNavigation::Run()
 		marine_navigation.force_input = 0;
 		marine_navigation.torque_input = 0;
 		marine_navigation.angular_error = 0;
-
-		//_marine_navigation_pub.publish(marine_navigation);
 
 		// Reset variables
 		if (module_initialization) {

@@ -111,7 +111,23 @@ private:
 		(ParamFloat<px4::params::MARINE_L_X>) _param_marine_l_x,
 		(ParamFloat<px4::params::MARINE_L_Y>) _param_marine_l_y,
 		(ParamFloat<px4::params::MARINE_R_X>) _param_marine_r_x,
-		(ParamFloat<px4::params::MARINE_R_Y>) _param_marine_r_y	
+		(ParamFloat<px4::params::MARINE_R_Y>) _param_marine_r_y,	
+		// Auto mission params
+		(ParamFloat<px4::params::AUTO_LPF>) _param_auto_lpf,
+		(ParamFloat<px4::params::AUTO_K_PX>) _param_auto_k_px,
+		(ParamFloat<px4::params::AUTO_K_PY>) _param_auto_k_py,
+		(ParamFloat<px4::params::AUTO_K_VX>) _param_auto_k_vx,
+		(ParamFloat<px4::params::AUTO_K_VY>) _param_auto_k_vy,
+		(ParamFloat<px4::params::AUTO_K_IX>) _param_auto_k_Ix,
+		(ParamFloat<px4::params::AUTO_K_IY>) _param_auto_k_Iy,
+		(ParamFloat<px4::params::AUTO_K_IL>) _param_auto_k_il,
+		(ParamFloat<px4::params::AUTO_I_MAX>) _param_auto_i_max,
+		(ParamFloat<px4::params::AUTO_K_C>) _param_auto_k_c,
+		(ParamFloat<px4::params::AUTO_K_CL>) _param_auto_k_cl,
+		(ParamFloat<px4::params::AUTO_VC_MAX>) _param_auto_vc_max,
+		(ParamFloat<px4::params::AUTO_VMIN_ADAPT>) _param_auto_vmin_adapt,
+		(ParamFloat<px4::params::AUTO_V_CRUISE>) _param_v_cruise_auto,
+		(ParamFloat<px4::params::AUTO_D_SLOW>) _param_d_slow_auto
 	)
 
 	// Parameter variables
@@ -128,13 +144,29 @@ private:
 	float left_th_y{_param_marine_l_y.get()};
 	float right_th_x{_param_marine_r_x.get()};
 	float right_th_y{_param_marine_r_y.get()};
+	// Auto mission params
+	float l_pf{_param_auto_lpf.get()};
+	float k_px{_param_auto_k_px.get()};
+	float k_py{_param_auto_k_py.get()};
+	float k_vx{_param_auto_k_vx.get()};
+	float k_vy{_param_auto_k_vy.get()};
+	float k_Ix{_param_auto_k_Ix.get()};
+	float k_Iy{_param_auto_k_Iy.get()};
+	float k_il{_param_auto_k_il.get()};
+	float I_max{_param_auto_i_max.get()};
+	float k_c{_param_auto_k_c.get()};
+	float k_cl{_param_auto_k_cl.get()};
+	float vc_max{_param_auto_vc_max.get()};
+	float vmin_adapt{_param_auto_vmin_adapt.get()};
+	float v_cruise_auto{_param_v_cruise_auto.get()};
+	float d_slow_auto{_param_d_slow_auto.get()};
 
 	// Control variables
 	float v_x;
 	float yaw_cont;
 	float yaw_fb_prev;
 	Quatf quat_fb;
-	Quatf quat_d; // Desired uaternion
+	Quatf quat_d; // Desired quaternion
 	Quatf quat_error;
 	float yaw_rate_fb;
 	float yaw_rate_error;
@@ -142,20 +174,12 @@ private:
 	float last_timestamp{0};
 	Vector2f control_input{0, 0}; // Control inputs for the propellers
 
-	// controllo auto velocità (surge)
-	float _v_cruise_auto{6.5f};     // [m/s] velocità di crociera auto (da parametrizzare se vuoi)
-	float _d_slow_auto{2.0f};       // [m] distanza di "rallentamento" vicino al waypoint
-
 	// Autonomous navigation params
-	float s_pf = 1.0f;  // ascissa curvilinea (segmento) [m]
-	float xi1_I = 0.0f;  // integrale errore posizione xi1 [m*s]
-	float xi2_I = 0.0f;  // integrale errore posizione xi2 [m*s]
-	float vc_hat_x = 0.0f; // corrente stimata (frame locale) [m/s]
+	float s_pf = 1.0f;  // arclength [m]
+	float xi1_I = 0.0f;  
+	float xi2_I = 0.0f;  
+	float vc_hat_x = 0.0f; 
 	float vc_hat_y = 0.0f; 
-
-	// guadagni per controllo yaw auto (torque_input)
-	float _Kp_psi_auto{1.0f};
-	float _Kd_psi_auto{0.1f};
 
 	MapProjection _global_local_proj_ref{};
 

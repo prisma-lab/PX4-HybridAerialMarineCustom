@@ -114,6 +114,15 @@ void MulticopterLandDetector::_update_topics()
 	if (_takeoff_status_sub.update(&takeoff_status)) {
 		_takeoff_state = takeoff_status.takeoff_state;
 	}
+
+	// CUSTOM PRISMA MARINE AUTO
+	mission_result_s _mission_result{};
+	if (_mission_result_sub.updated())
+	{
+		_mission_result_sub.copy(&_mission_result);
+		landing_on_water = _mission_result.prisma_marine_active;
+	}
+	// END CUSTOM
 }
 
 void MulticopterLandDetector::_update_params()
@@ -162,7 +171,7 @@ bool MulticopterLandDetector::_get_ground_contact_state()
 
 	const bool lpos_available = ((time_now_us - _vehicle_local_position.timestamp) < 1_s);
 
-	if (lpos_available) {
+	if (lpos_available && !landing_on_water) {
 		// Check if we are moving vertically.
 		// Use wider threshold if currently in "maybe landed" state, as estimation for
 		// vertical speed is often deteriorated when on the ground or due to propeller
@@ -185,7 +194,13 @@ bool MulticopterLandDetector::_get_ground_contact_state()
 			_vertical_movement = true;
 		}
 
-	} else {
+	} 
+	// CUSTOM PRISMA MARINE AUTO
+	else if (landing_on_water) {
+		_vertical_movement = false;
+	}
+	// END CUSTOM
+	else {
 		_vertical_movement = true;
 	}
 
