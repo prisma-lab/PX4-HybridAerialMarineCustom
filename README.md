@@ -16,7 +16,7 @@ This work is currently under review
 # How to use
 Clone the repository with submodules
 ```sh
-git clone --recurse-submodule https://github.com/prisma-lab/PX4_Hybrid_Aerial_Amphibious_Custom.git
+git clone --recurse-submodule https://github.com/prisma-lab/PX4-Hybrid_Aerial_Marine_Custom.git
 ```
 
 ## Run the simulation
