@@ -255,7 +255,7 @@ rc_update start
 manual_control start
 sensors start
 commander start
-marine_takeoff start
+##marine_takeoff start
 
 if ! pwm_out_sim start -m sim
 then

@@ -52,6 +52,8 @@ private:
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
 	uORB::Publication<vehicle_command_s> _vehicle_command_pub{ORB_ID(vehicle_command)};
+	uORB::Subscription _vehicle_command_sub{ORB_ID(vehicle_command)};
+
 
 
 	// Performance counters
@@ -61,6 +63,12 @@ private:
 	vehicle_control_mode_s _vehicle_control_mode{};
 	bool _armed{false};
 	bool _takeoff_sent {false};
+	bool allow_takeoff{false};
+	hrt_abstime _armed_time{0};
+	bool in_marine_takeoff = false;
+	bool _arm_command_sent{false};
+	 vehicle_status_s _vehicle_status{};
+
 
 
 	// Parameters

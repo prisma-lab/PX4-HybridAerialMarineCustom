@@ -817,9 +817,7 @@ void Navigator::run()
 			break;
 
 
-		// CUSTOM PRISMA MARINE TAKEOFF
-		case vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF:
-		//END CUSTOM
+
 		case vehicle_status_s::NAVIGATION_STATE_MANUAL:
 		case vehicle_status_s::NAVIGATION_STATE_ACRO:
 		case vehicle_status_s::NAVIGATION_STATE_ALTCTL:

@@ -415,6 +415,7 @@ int Commander::custom_command(int argc, char *argv[])
 			}else if (!strcmp(argv[1], "marine_takeoff")) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
 						     PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF);
+						     PX4_INFO("Switched to marine takeoff mode ");
 			// END CUSTOM
 
 			} else if (!strcmp(argv[1], "ext1")) {
@@ -1843,7 +1844,12 @@ void Commander::run()
 		const bool nav_state_or_failsafe_changed = handleModeIntentionAndFailsafe();
 
 		// Run arming checks @ 10Hz
-		if ((now >= _last_health_and_arming_check + 100_ms) || _status_changed || nav_state_or_failsafe_changed) {
+		// CUSTOM PRISMA MARINE
+		//if ((now >= _last_health_and_arming_check + 100_ms) || _status_changed || nav_state_or_failsafe_changed)
+		if (((now >= _last_health_and_arming_check + 100_ms) || _status_changed || nav_state_or_failsafe_changed) &&
+			(_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_MARINE_TAKEOFF))
+		// END CUSTOM
+		{
 			_last_health_and_arming_check = now;
 
 			perf_begin(_preflight_check_perf);

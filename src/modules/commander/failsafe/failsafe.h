@@ -34,6 +34,10 @@
 #pragma once
 
 #include "framework.h"
+// CUSTOM PRISMA MARINE TAKEOFF
+#include <uORB/Subscription.hpp>
+#include <uORB/topics/vehicle_status.h>
+// END CUSTOM
 
 
 class Failsafe : public FailsafeBase
@@ -166,6 +170,12 @@ private:
 	hrt_abstime _armed_time{0};
 	bool _was_armed{false};
 	bool _manual_control_lost_at_arming{false}; ///< true if manual control was lost at arming time
+		// CUSTOM PRISMA MARINE
+	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
+	vehicle_status_s _vehicle_status{};
+	bool in_marine_mode{false}; // true if in marine mode, false if in normal mode
+	// END CUSTOM
+
 
 	DEFINE_PARAMETERS_CUSTOM_PARENT(FailsafeBase,
 					(ParamInt<px4::params::NAV_DLL_ACT>) 	_param_nav_dll_act,
