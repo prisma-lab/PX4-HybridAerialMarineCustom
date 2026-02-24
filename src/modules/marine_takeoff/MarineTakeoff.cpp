@@ -1,36 +1,3 @@
-/****************************************************************************
- *
- *   Copyright (c) 2021 PX4 Development Team. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- * 3. Neither the name PX4 nor the names of its contributors may be
- *    used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- ****************************************************************************/
-
 #include "MarineTakeoff.hpp"
 
 MarineTakeoff::MarineTakeoff() :
@@ -111,6 +78,10 @@ void MarineTakeoff::Run()
 		}
 	}
 
+	_vehicle_control_mode_sub.update(&_vehicle_control_mode);
+
+	if(_vehicle_control_mode.flag_control_marine_takeoff_enabled){
+		PX4_INFO("Marine Takeoff mode enabled");
 	if (!_armed) {
 		// Arm the vehicle
 		vehicle_command_s cmd{};
@@ -127,23 +98,35 @@ void MarineTakeoff::Run()
 		PX4_INFO("Sent ARM command from MarineTakeoff module");
 	}
 
+
+
+
 	// If armed but not yet taken off
 	if (_armed && !_takeoff_sent) {
-		vehicle_command_s takeoff_cmd{};
-		takeoff_cmd.timestamp = hrt_absolute_time();
-		takeoff_cmd.command = vehicle_command_s::VEHICLE_CMD_NAV_TAKEOFF;
-		takeoff_cmd.param7 = 5.0f; // takeoff altitude (meters)
-		takeoff_cmd.target_system = 1;
-		takeoff_cmd.target_component = 1;
-		takeoff_cmd.source_system = 1;
-		takeoff_cmd.source_component = 1;
-		takeoff_cmd.from_external = false;
 
-		_vehicle_command_pub.publish(takeoff_cmd);
-		PX4_INFO("Sent TAKEOFF command from MarineTakeoff module");
+		vehicle_command_s mode_cmd{};
+		mode_cmd.timestamp = hrt_absolute_time();
+		mode_cmd.command = vehicle_command_s::VEHICLE_CMD_DO_SET_MODE;
 
-		_takeoff_sent = true; // flag to send takeoff only once
+		mode_cmd.param1 = 1; // custom mode enabled
+		mode_cmd.param2 = 4;
+		mode_cmd.param3 = 2; // AUTO_TAKEOFF  Mode avvia il navigator altrimenti non parte la modalita di takeoff
+
+		mode_cmd.target_system = 1;
+		mode_cmd.target_component = 1;
+		mode_cmd.source_system = 1;
+		mode_cmd.source_component = 1;
+		mode_cmd.from_external = false;
+
+		_vehicle_command_pub.publish(mode_cmd);
+
+		PX4_INFO("Sent AUTO_TAKEOFF mode command");
+
+		_takeoff_sent = true;
 	}
+	}
+
+		perf_end(_loop_perf);
 
 }
 

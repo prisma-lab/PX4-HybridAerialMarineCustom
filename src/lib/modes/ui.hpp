@@ -100,10 +100,10 @@ const char *const nav_state_names[vehicle_status_s::NAVIGATION_STATE_MAX] = {
 	"External 4",
 	"External 5",
 	// CUSTOM PRISMA MARINE TAKEOFF
-	//"External 6",
-	"Marine Takeoff",
+	"External 6",
 	"External 7",
-	"External 8",
+	//"External 8",
+	"Marine Takeoff",
 	// END CUSTOM
 };
 
@@ -127,12 +127,12 @@ static inline bool isAdvanced(uint8_t nav_state)
 
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL5: return false;
 		// CUSTOM PRISMA MARINE TAKEOFF
-	//case vehicle_status_s::NAVIGATION_STATE_EXTERNAL6: return false;
+	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL6: return false;
 	// END CUSTOM
 
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL7: return false;
 
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL8: return false;
+	//case vehicle_status_s::NAVIGATION_STATE_EXTERNAL8: return false;
 
 	}
 

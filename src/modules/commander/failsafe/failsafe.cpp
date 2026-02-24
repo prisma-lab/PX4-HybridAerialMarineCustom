@@ -480,23 +480,18 @@ void Failsafe::checkStateAndMode(const hrt_abstime &time_us, const State &state,
 	}
 
 	// CUSTOM PRISMA MARINE  TAKEOFF
-		if (_vehicle_status_sub.updated()) {
-			_vehicle_status_sub.copy(&_vehicle_status);
-			in_marine_mode = (_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF);
-		}
-	// END CUSTOM
+	// CUSTOM PRISMA MARINE
 
 
-	// Failure detector
 	// Failure detector
 	if ((_armed_time != 0)
-	    && (time_us < _armed_time + static_cast<hrt_abstime>(_param_com_spoolup_time.get() * 1_s)) && !in_marine_mode) {
+	    && (time_us < _armed_time + static_cast<hrt_abstime>(_param_com_spoolup_time.get() * 1_s)) ) {
 		CHECK_FAILSAFE(status_flags, fd_esc_arming_failure, ActionOptions(Action::Disarm).cannotBeDeferred());
 	}
 
 	if ((_armed_time != 0)
 	    && (time_us < _armed_time
-		+ static_cast<hrt_abstime>((_param_com_lkdown_tko.get() + _param_com_spoolup_time.get()) * 1_s)) && !in_marine_mode) {
+		+ static_cast<hrt_abstime>((_param_com_lkdown_tko.get() + _param_com_spoolup_time.get()) * 1_s)) ) {
 		// This handles the case where something fails during the early takeoff phase
 		CHECK_FAILSAFE(status_flags, fd_critical_failure, ActionOptions(Action::Disarm).cannotBeDeferred());
 

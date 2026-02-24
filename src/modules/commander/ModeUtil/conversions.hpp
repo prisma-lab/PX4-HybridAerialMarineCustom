@@ -86,11 +86,11 @@ static inline navigation_mode_t navigation_mode(uint8_t nav_state)
 
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL5: return navigation_mode_t::external5;
 
-	//case vehicle_status_s::NAVIGATION_STATE_EXTERNAL6: return navigation_mode_t::external6;
+	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL6: return navigation_mode_t::external6;
 
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL7: return navigation_mode_t::external7;
 
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL8: return navigation_mode_t::external8;
+	//case vehicle_status_s::NAVIGATION_STATE_EXTERNAL8: return navigation_mode_t::external8;
 
 	// CUSTOM PRISMA MARINE TAKEOFF
 	case vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF: return navigation_mode_t::marine_takeoff;

@@ -366,6 +366,24 @@ int Commander::custom_command(int argc, char *argv[])
 
 	if (!strcmp(argv[0], "mode")) {
 
+                		// CUSTOM PRISMA MARINE
+		// Check if the drone is armed before switching to marine manual mode
+		uORB::SubscriptionData<actuator_armed_s> actuator_armed_sub{ORB_ID(actuator_armed)};
+		bool drone_armed = false;
+		if (actuator_armed_sub.updated()) {
+			actuator_armed_s actuator_armed{};
+			actuator_armed_sub.copy(&actuator_armed);
+			drone_armed = actuator_armed.armed;
+		}
+		// Check if the drone is landed before switching to marine manual mode
+		uORB::Subscription _vehicle_land_detected_sub{ORB_ID(vehicle_land_detected)};
+		bool drone_landed = false;
+		if (_vehicle_land_detected_sub.updated()) {
+			vehicle_land_detected_s vehicle_land_detected{};
+			_vehicle_land_detected_sub.copy(&vehicle_land_detected);
+			drone_landed = vehicle_land_detected.maybe_landed;;
+		}
+
 		// END CUSTOM
 		if (argc > 1) {
 
@@ -412,7 +430,7 @@ int Commander::custom_command(int argc, char *argv[])
 						     PX4_CUSTOM_SUB_MODE_AUTO_PRECLAND);
 
 			// CUSTOM PRISMA MARINE TAKEOFF
-			}else if (!strcmp(argv[1], "marine_takeoff")) {
+			}else if (!strcmp(argv[1], "marine_takeoff")  && !drone_armed && drone_landed) {
 				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
 						     PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF);
 						     PX4_INFO("Switched to marine takeoff mode ");
@@ -615,7 +633,7 @@ transition_result_t Commander::arm(arm_disarm_reason_t calling_reason, bool run_
 	events::send<events::px4::enums::arm_disarm_reason_t>(events::ID("commander_armed_by"), events::Log::Info,
 			"Armed by {1}", calling_reason);
 	// CUSTOM PRISMA  MARINE TAKEOFF
-	if (_param_com_home_en.get() && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_MARINE_TAKEOFF) {
+	if (_param_com_home_en.get() ) {
 	// END CUSTOM
 		_home_position.setHomePosition();
 	}
@@ -824,13 +842,15 @@ Commander::handle_command(const vehicle_command_s &cmd)
 							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_AUTO_PRECLAND;
 							break;
 
-						case PX4_CUSTOM_SUB_MODE_EXTERNAL1...PX4_CUSTOM_SUB_MODE_EXTERNAL5:
+						case PX4_CUSTOM_SUB_MODE_EXTERNAL1...PX4_CUSTOM_SUB_MODE_EXTERNAL7:
 							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_EXTERNAL1 + (custom_sub_mode - PX4_CUSTOM_SUB_MODE_EXTERNAL1);
 							break;
 
-						case PX4_CUSTOM_SUB_MODE_EXTERNAL7...PX4_CUSTOM_SUB_MODE_EXTERNAL8:
-							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_EXTERNAL7 + (custom_sub_mode - PX4_CUSTOM_SUB_MODE_EXTERNAL7);
-							break;
+						//case PX4_CUSTOM_SUB_MODE_EXTERNAL8:
+						//	desired_nav_state = vehicle_status_s::NAVIGATION_STATE_EXTERNAL8;
+						//	break;
+
+
 
 						default:
 							main_ret = TRANSITION_DENIED;
@@ -1802,12 +1822,12 @@ void Commander::run()
 
 
 		// CUSTOM PRISMA MARINE TAKEOFF
-		const bool in_prisma_marine =
-			(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF);
+		//const bool in_prisma_marine =
+		//	(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF);
 
-		if (in_prisma_marine && (_vehicle_land_detected.landed || _vehicle_land_detected.maybe_landed)) {
+		//if (in_prisma_marine && (_vehicle_land_detected.landed || _vehicle_land_detected.maybe_landed)) {
 			lock_home_position_update = true;
-		}
+		//}
 		// END CUSTOM
 
 		safetyButtonUpdate();
@@ -2111,7 +2131,6 @@ void Commander::handleAutoDisarm()
 		// CUSTOM PRISMA MARINE TAKEOFF
 		// Check for auto-disarm on landing or pre-flight
 		if ((_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_MARINE_TAKEOFF)
-			//&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_AUTO_MARINE)
 			&& (_param_com_disarm_land.get() > 0 || _param_com_disarm_preflight.get() > 0)) {
 
 		// END CUSTOM
@@ -2163,10 +2182,11 @@ void Commander::handleAutoDisarm()
 			}
 		}
 
-	} else {
+	 else {
 		_auto_disarm_landed.set_state_and_update(false, hrt_absolute_time());
 		_auto_disarm_killed.set_state_and_update(false, hrt_absolute_time());
 	}
+  }
 }
 
 
@@ -2195,12 +2215,12 @@ void Commander::landDetectorUpdate()
 				if (!_vehicle_land_detected.landed) {
 					if (was_landed) {
 						// CUSTOM PRISMA MARINE TAKEOFF: avoid updating home position if taking off from sea
-						if(lock_home_position_update) {
-							lock_home_position_update = false;
-						}
-						else{
-							_home_position.setHomePosition();
-						}
+						//if(lock_home_position_update) {
+						//	lock_home_position_update = false;
+						//}
+						//else{
+						//	_home_position.setHomePosition();
+						//}
 						//_home_position.setHomePosition();
 						// END CUSTOM
 					} else if (_param_com_home_in_air.get()) {

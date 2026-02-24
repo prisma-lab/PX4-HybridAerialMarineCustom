@@ -73,9 +73,9 @@ enum PX4_CUSTOM_SUB_MODE_AUTO {
 	PX4_CUSTOM_SUB_MODE_EXTERNAL3,
 	PX4_CUSTOM_SUB_MODE_EXTERNAL4,
 	PX4_CUSTOM_SUB_MODE_EXTERNAL5,
-	//PX4_CUSTOM_SUB_MODE_EXTERNAL6,
+	PX4_CUSTOM_SUB_MODE_EXTERNAL6,
 	PX4_CUSTOM_SUB_MODE_EXTERNAL7,
-	PX4_CUSTOM_SUB_MODE_EXTERNAL8,
+	//PX4_CUSTOM_SUB_MODE_EXTERNAL8,
 };
 
 enum PX4_CUSTOM_SUB_MODE_POSCTL {
@@ -217,20 +217,20 @@ static inline union px4_custom_mode get_px4_custom_mode(uint8_t nav_state)
 		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL5;
 		break;
         //CUSTOM
-	//case vehicle_status_s::NAVIGATION_STATE_EXTERNAL6:
-	//	custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
-	//	custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL6;
-	//	break;
+	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL6:
+		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
+		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL6;
+		break;
 
 	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL7:
 		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
 		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL7;
 		break;
 
-	case vehicle_status_s::NAVIGATION_STATE_EXTERNAL8:
-		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
-		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL8;
-		break;
+	//case vehicle_status_s::NAVIGATION_STATE_EXTERNAL8:
+	//	custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_AUTO;
+	//	custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL8;
+	//	break;
 
 	// CUSTOM PRISMA MARINE TAKEOFF
 	case vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF:
