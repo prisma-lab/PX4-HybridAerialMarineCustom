@@ -21,6 +21,14 @@
 #include <uORB/topics/actuator_armed.h>
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/vehicle_command.h>
+#include <uORB/Subscription.hpp>
+#include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/vehicle_imu_status.h>
+#include <uORB/topics/vehicle_land_detected.h>
+
+
+
+
 
 
 
@@ -41,10 +49,25 @@ public:
 private:
 	void Run() override;
 
+
+	struct FrequencyEstimator {
+        static constexpr size_t MAX_SAMPLES = 256;
+        uint64_t timestamps[MAX_SAMPLES]{};
+        size_t index{0};
+        size_t count{0};
+
+        // Dichiarazione della funzione (senza corpo del codice)
+        float estimate(uint64_t current_timestamp);
+    };
+
+
+
 	// Publications (example only)
 	uORB::Publication<orb_test_s> _orb_test_pub{ORB_ID(orb_test)};
 	uORB::Publication<actuator_servos_s> _actuator_servos_pub{ORB_ID(actuator_servos)};
 	uORB::Publication<actuator_armed_s> _armed_pub{ORB_ID(actuator_armed)};
+
+
 
 	// Subscriptions
 	uORB::SubscriptionCallbackWorkItem _sensor_accel_sub{this, ORB_ID(sensor_accel)};
@@ -53,6 +76,14 @@ private:
 	uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
 	uORB::Publication<vehicle_command_s> _vehicle_command_pub{ORB_ID(vehicle_command)};
+
+	uORB::Subscription _vehicle_imu_status_sub{ORB_ID(vehicle_imu_status)};
+
+	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
+	uORB::Subscription _vehicle_land_detected_sub{ORB_ID(vehicle_land_detected)};
+
+
+
 
 
 
@@ -64,6 +95,24 @@ private:
 	bool _armed{false};
 	bool _takeoff_sent {false};
 	float _home_alt_msl{0.0f};
+
+
+	vehicle_attitude_s   _last_attitude{};
+        vehicle_imu_status_s _last_imu_status{};
+
+	// Istanze degli estimatori
+	FrequencyEstimator _att_freq_est;
+	FrequencyEstimator _imu_freq_est;
+
+	float _freq_att{0.0f};
+	float _freq_imu{0.0f};
+	uint64_t next_sample{0};
+	static constexpr int FFT_SIZE = 256;  // dimensione della FFT
+	float accel_buffer[FFT_SIZE][3];        // buffer per roll / attitude
+	float q_buffer[FFT_SIZE][4];         // buffer per imu vibration / ZOH
+	int idx{0};
+	bool _is_logging{false};  // Questo è l'interruttore: false = spento, true = acceso
+   	int _file_counter{0};     // Serve per dare nomi diversi ai file: log_0, log_1, ecc.                        // indice corrente nel buffer
 
 
 	// Parameters

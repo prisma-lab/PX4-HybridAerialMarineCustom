@@ -17,7 +17,7 @@ bool MarineTakeoff::init()
 
 
 	// alternatively, Run on fixed interval
-	 ScheduleOnInterval(100_ms);
+	 ScheduleOnInterval(2_ms);
 
 	return true;
 }
@@ -80,9 +80,10 @@ void MarineTakeoff::Run()
 
 	_vehicle_control_mode_sub.update(&_vehicle_control_mode);
 
-	if(_vehicle_control_mode.flag_control_marine_takeoff_enabled){
-		PX4_INFO("Marine Takeoff mode enabled");
-	if (!_armed) {
+	//if(_vehicle_control_mode.flag_control_marine_takeoff_enabled){
+	//	PX4_INFO("Marine Takeoff mode enabled");
+	//
+	 if (!_armed) {
 		// Arm the vehicle
 		vehicle_command_s cmd{};
 		cmd.timestamp = hrt_absolute_time();
@@ -97,6 +98,7 @@ void MarineTakeoff::Run()
 		_vehicle_command_pub.publish(cmd);
 		PX4_INFO("Sent ARM command from MarineTakeoff module");
 	}
+
 
 
 
@@ -118,16 +120,137 @@ void MarineTakeoff::Run()
 		mode_cmd.source_component = 1;
 		mode_cmd.from_external = false;
 
-		_vehicle_command_pub.publish(mode_cmd);
+   		_vehicle_command_pub.publish(mode_cmd);
 
 		PX4_INFO("Sent AUTO_TAKEOFF mode command");
 
 		_takeoff_sent = true;
+
 	}
+
+
+
+	         // ===========================
+	// Lettura topic attitude e IMU
+	// ===========================
+	const bool attitude_updated = _vehicle_attitude_sub.updated();
+	const bool imu_status_updated = _vehicle_imu_status_sub.updated();
+
+	// Aggiorna ultimo messaggio e stima frequenza
+	if (attitude_updated && _vehicle_attitude_sub.copy(&_last_attitude)) {
+		_freq_att = _att_freq_est.estimate(_last_attitude.timestamp);
 	}
+	if (imu_status_updated && _vehicle_imu_status_sub.copy(&_last_imu_status)) {
+		_freq_imu = _imu_freq_est.estimate(_last_imu_status.timestamp);
+	}
+
+	///  debug
+
+	//	static uint64_t last_freq_print = 0;
+        //      uint64_t now = hrt_absolute_time();
+	//	if (now - last_freq_print > 1000000) { // 1 secondo
+        //		PX4_INFO("--- Frequenze Topics ---");
+	//		PX4_INFO("Attitude freq: %.2f Hz", (double)_freq_att);
+	//		PX4_INFO("IMU Status freq: %.2f Hz", (double)_freq_imu);
+	//		last_freq_print = now;
+	//}
+
+
+
+
+	// ===========================
+	// ZOH + Sampling ad ogni aggiornamento del topic più veloce
+	// ===========================
+	bool att_is_faster = (_freq_att >= _freq_imu);
+	bool reference_updated = att_is_faster ? attitude_updated : imu_status_updated;
+
+	if (reference_updated) {
+		// Salvataggio buffer
+		q_buffer[idx][0] = _last_attitude.q[0];
+		q_buffer[idx][1] = _last_attitude.q[1];
+		q_buffer[idx][2] = _last_attitude.q[2];
+		q_buffer[idx][3] = _last_attitude.q[3];
+
+		accel_buffer[idx][0] = _last_imu_status.mean_accel[0];
+		accel_buffer[idx][1] = _last_imu_status.mean_accel[1];
+		accel_buffer[idx][2] = _last_imu_status.mean_accel[2];
+
+
+
+
+
+		idx++;
+		if (idx >= FFT_SIZE) {
+
+    // Controlliamo l'interruttore: se è 'true' (acceso), scriviamo il file
+    if (_is_logging) {
+        char file_path[128];
+        // Creiamo il nome: log_0.csv, poi log_1.csv, ecc.
+        snprintf(file_path, sizeof(file_path), "log_%d.csv", _file_counter++);
+
+        FILE *csv_file = fopen(file_path, "w"); // "w" significa: crea un file nuovo pulito
+
+        if (csv_file) {
+            // --- QUESTA È L'INTESTAZIONE ---
+            // Scriviamo i nomi delle colonne così Excel le capisce subito
+            fprintf(csv_file, "timestamp,qw,qx,qy,qz,acc_x,acc_y,acc_z\n");
+
+            // Ora scriviamo tutti i dati che abbiamo nel buffer
+            for (int i = 0; i < FFT_SIZE; i++) {
+                fprintf(csv_file, "%llu,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+                    (unsigned long long)_last_attitude.timestamp,
+                    (double)q_buffer[i][0], (double)q_buffer[i][1],
+                    (double)q_buffer[i][2], (double)q_buffer[i][3],
+                    (double)accel_buffer[i][0], (double)accel_buffer[i][1],
+                    (double)accel_buffer[i][2]);
+            }
+
+            fclose(csv_file); // Chiudiamo il file (importantissimo!)
+            PX4_INFO("Salvato: %s", file_path);
+        } else {
+            PX4_ERR("Errore! Non riesco a creare il file %s", file_path);
+        }
+    }
+
+    // Anche se non abbiamo salvato, svuotiamo il buffer per ricominciare
+    idx = 0;
+
+
+}
+		// Debug
+		//static uint64_t last_print_time = 0;
+		//uint64_t now = hrt_absolute_time();
+		//if (now - last_print_time > 1000000) { // 1 secondo
+		  // Nome e frequenza del topic di riferimento
+		//float ref_freq = att_is_faster ? _freq_att : _freq_imu;
+		//const char* ref_name = att_is_faster ? "Attitude" : "IMU_Status";
+
+		//PX4_INFO("--- ZOH Alignment ---");
+		//PX4_INFO("Ref Topic: %s (%.2f Hz)", ref_name, (double)ref_freq);
+
+		// --- Stampa quaternion (q[4]) ---
+		//PX4_INFO("q: [%.3f, %.3f, %.3f, %.3f]",
+		//(double)_last_attitude.q[0],
+		//(double)_last_attitude.q[1],
+		//(double)_last_attitude.q[2],
+		//(double)_last_attitude.q[3]);
+
+		// --- Stampa accelerazione media (mean_accel[3]) ---
+		//PX4_INFO("mean_accel: [%.3f, %.3f, %.3f]",
+		//	(double)_last_imu_status.mean_accel[0],
+		//	(double)_last_imu_status.mean_accel[1],
+		//	(double)_last_imu_status.mean_accel[2]);
+
+	//last_print_time = now;
+	//}
+
+
+
+
 
 		perf_end(_loop_perf);
 
+	}
 }
 
 int MarineTakeoff::task_spawn(int argc, char *argv[])
@@ -162,7 +285,29 @@ int MarineTakeoff::print_status()
 
 int MarineTakeoff::custom_command(int argc, char *argv[])
 {
-	return print_usage("unknown command");
+    // 1. Controlliamo se il modulo è acceso, altrimenti non possiamo parlargli
+    if (!is_running()) {
+        PX4_ERR("Il modulo non e' avviato! Scrivi prima: marine_takeoff start");
+        return 1;
+    }
+
+    // 2. Se scrivi "marine_takeoff start_log"
+    if (!strcmp(argv[0], "start_log")) {
+        get_instance()->_is_logging = true; // ACCENDIAMO l'interruttore
+        PX4_INFO(">>> Registrazione CSV INIZIATA!");
+        return 0;
+    }
+
+    // 3. Se scrivi "marine_takeoff stop_log"
+    if (!strcmp(argv[0], "stop_log")) {
+        get_instance()->_is_logging = false; // SPEGNIAMO l'interruttore
+        PX4_INFO(">>> Registrazione CSV FERMATA.");
+        return 0;
+    }
+
+    // Se scrivi qualcosa che non capisce
+    return print_usage("Comando sconosciuto! Usa: start_log o stop_log");
+
 }
 
 int MarineTakeoff::print_usage(const char *reason)
@@ -183,6 +328,29 @@ Example of a simple module running out of a work queue.
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 
 	return 0;
+}
+
+
+
+float MarineTakeoff::FrequencyEstimator::estimate(uint64_t current_timestamp)
+{
+    if (current_timestamp == 0) return 0.0f;
+
+    // Inserimento nel buffer circolare
+    timestamps[index] = current_timestamp;
+    index = (index + 1) % MAX_SAMPLES;
+    if (count < MAX_SAMPLES) count++;
+
+    if (count < 2) return 0.0f;
+
+    // Calcolo indici per trovare il Delta Tempo totale
+    size_t oldest_idx = (count < MAX_SAMPLES) ? 0 : index;
+    size_t latest_idx = (index == 0) ? MAX_SAMPLES - 1 : index - 1;
+
+    uint64_t dt_total = timestamps[latest_idx] - timestamps[oldest_idx];
+
+    // Ritorna frequenza in Hz: (N campioni - 1) / (tempo totale in microsecondi / 1e6)
+    return (dt_total > 0) ? (float)(count - 1) / (dt_total / 1e6f) : 0.0f;
 }
 
 extern "C" __EXPORT int marine_takeoff_main(int argc, char *argv[])

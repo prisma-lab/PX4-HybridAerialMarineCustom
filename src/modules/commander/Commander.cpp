@@ -1822,12 +1822,12 @@ void Commander::run()
 
 
 		// CUSTOM PRISMA MARINE TAKEOFF
-		//const bool in_prisma_marine =
-		//	(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF);
+		const bool in_prisma_marine =
+			(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF);
 
-		//if (in_prisma_marine && (_vehicle_land_detected.landed || _vehicle_land_detected.maybe_landed)) {
+		if (in_prisma_marine && (_vehicle_land_detected.landed || _vehicle_land_detected.maybe_landed)) {
 			lock_home_position_update = true;
-		//}
+		}
 		// END CUSTOM
 
 		safetyButtonUpdate();
@@ -2215,12 +2215,12 @@ void Commander::landDetectorUpdate()
 				if (!_vehicle_land_detected.landed) {
 					if (was_landed) {
 						// CUSTOM PRISMA MARINE TAKEOFF: avoid updating home position if taking off from sea
-						//if(lock_home_position_update) {
-						//	lock_home_position_update = false;
-						//}
-						//else{
-						//	_home_position.setHomePosition();
-						//}
+						if(lock_home_position_update) {
+							lock_home_position_update = false;
+						}
+						else{
+							_home_position.setHomePosition();
+						}
 						//_home_position.setHomePosition();
 						// END CUSTOM
 					} else if (_param_com_home_in_air.get()) {
