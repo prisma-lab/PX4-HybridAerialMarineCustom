@@ -173,96 +173,69 @@ void MarineTakeoff::Run()
 	const TopicSelector::Candidate* best = TopicSelector::getBestCandidate(streams, 2);
 
 	// 3. Verifichiamo se dobbiamo campionare (ZOH Trigger)
-	// Il trigger scatta solo se il topic più veloce ha ricevuto un nuovo dato
-	bool reference_updated = (best != nullptr) && best->updated;
+         // 3. Verifichiamo se dobbiamo campionare (ZOH Trigger)
+        bool reference_updated = (best != nullptr) && best->updated;
 
-	if (reference_updated) {
-		// Salvataggio buffer
-		q_buffer[idx][0] = _last_attitude.q[0];
-		q_buffer[idx][1] = _last_attitude.q[1];
-		q_buffer[idx][2] = _last_attitude.q[2];
-		q_buffer[idx][3] = _last_attitude.q[3];
-
-		accel_buffer[idx][0] = _last_imu_status.mean_accel[0];
-		accel_buffer[idx][1] = _last_imu_status.mean_accel[1];
-		accel_buffer[idx][2] = _last_imu_status.mean_accel[2];
+        if (reference_updated) {
 
 
 
+                // --- SINCRONIZZAZIONE MESSAGGIO MarineSync ---
+		_sync_msg.timestamp = hrt_absolute_time();
 
+		// Copia i quaternioni (q è un array di 4 float)
+		ZOHHandler::synchronize(_last_attitude.q, _sync_msg.q, sizeof(_sync_msg.q));
 
-		idx++;
-		if (idx >= FFT_SIZE) {
+		// Copia le accelerazioni (accel è un array di 3 float)
+		ZOHHandler::synchronize(_last_imu_status.mean_accel, _sync_msg.accel, sizeof(_sync_msg.accel));
 
-    // Controlliamo l'interruttore: se è 'true' (acceso), scriviamo il file
-    if (_is_logging) {
-        char file_path[128];
-        // Creiamo il nome: log_0.csv, poi log_1.csv, ecc.
-        snprintf(file_path, sizeof(file_path), "log_%d.csv", _file_counter++);
+		_marine_sync_pub.publish(_sync_msg);
 
-        FILE *csv_file = fopen(file_path, "w"); // "w" significa: crea un file nuovo pulito
+                // --- PUNTO 1: REGISTRAZIONE NEL BUFFER CON ZOH ---
+                int temp_idx = idx; // Prepariamo il posto nella riga attuale
 
-        if (csv_file) {
-            // --- QUESTA È L'INTESTAZIONE ---
-            // Scriviamo i nomi delle colonne così Excel le capisce subito
-            fprintf(csv_file, "timestamp,qw,qx,qy,qz,acc_x,acc_y,acc_z\n");
+                // Copiamo i 4 valori dell'Attitude (senza far avanzare idx)
+                ZOHHandler::bufferData(_last_attitude.q, 4, (float*)q_buffer, temp_idx, FFT_SIZE);
 
-            // Ora scriviamo tutti i dati che abbiamo nel buffer
-            for (int i = 0; i < FFT_SIZE; i++) {
-                fprintf(csv_file, "%llu,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
-                    (unsigned long long)_last_attitude.timestamp,
-                    (double)q_buffer[i][0], (double)q_buffer[i][1],
-                    (double)q_buffer[i][2], (double)q_buffer[i][3],
-                    (double)accel_buffer[i][0], (double)accel_buffer[i][1],
-                    (double)accel_buffer[i][2]);
-            }
+                // Copiamo i 3 valori dell'IMU (questo fa avanzare idx e ci dice se il buffer è pieno)
+                bool buffer_pieno = ZOHHandler::bufferData(_last_imu_status.mean_accel, 3, (float*)accel_buffer, idx, FFT_SIZE);
 
-            fclose(csv_file); // Chiudiamo il file (importantissimo!)
-            PX4_INFO("Salvato: %s", file_path);
-        } else {
-            PX4_ERR("Errore! Non riesco a creare il file %s", file_path);
+                // --- PUNTO 2: CONTROLLO SALVATAGGIO ---
+                if (buffer_pieno) {
+
+                        if (_is_logging) {
+                                char file_path[128];
+                                // Usiamo PX4_STORAGEDIR per essere sicuri di andare sulla SD card
+                                snprintf(file_path, sizeof(file_path), PX4_STORAGEDIR "/log_%d.csv", _file_counter++);
+
+                                FILE *csv_file = fopen(file_path, "w");
+
+                                if (csv_file) {
+                                        fprintf(csv_file, "timestamp,qw,qx,qy,qz,acc_x,acc_y,acc_z\n");
+
+                                        for (int i = 0; i < FFT_SIZE; i++) {
+                                                fprintf(csv_file, "%llu,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+                                                        (unsigned long long)_last_attitude.timestamp,
+                                                        (double)q_buffer[i][0], (double)q_buffer[i][1],
+                                                        (double)q_buffer[i][2], (double)q_buffer[i][3],
+                                                        (double)accel_buffer[i][0], (double)accel_buffer[i][1],
+                                                        (double)accel_buffer[i][2]);
+                                        }
+
+                                        fclose(csv_file);
+                                        PX4_INFO("Salvato: %s", file_path);
+                                } else {
+                                        PX4_ERR("Errore! Impossibile creare il file %s", file_path);
+                                }
+                        }
+
+                        // Fondamentale: reset dell'indice per ricominciare a riempire i buffer
+                        idx = 0;
+                }
+
+                // Fine del ciclo di performance
+                perf_end(_loop_perf);
         }
-    }
-
-    // Anche se non abbiamo salvato, svuotiamo il buffer per ricominciare
-    idx = 0;
-
-
-}
-		// Debug
-		//static uint64_t last_print_time = 0;
-		//uint64_t now = hrt_absolute_time();
-		//if (now - last_print_time > 1000000) { // 1 secondo
-		  // Nome e frequenza del topic di riferimento
-		//float ref_freq = att_is_faster ? _freq_att : _freq_imu;
-		//const char* ref_name = att_is_faster ? "Attitude" : "IMU_Status";
-
-		//PX4_INFO("--- ZOH Alignment ---");
-		//PX4_INFO("Ref Topic: %s (%.2f Hz)", ref_name, (double)ref_freq);
-
-		// --- Stampa quaternion (q[4]) ---
-		//PX4_INFO("q: [%.3f, %.3f, %.3f, %.3f]",
-		//(double)_last_attitude.q[0],
-		//(double)_last_attitude.q[1],
-		//(double)_last_attitude.q[2],
-		//(double)_last_attitude.q[3]);
-
-		// --- Stampa accelerazione media (mean_accel[3]) ---
-		//PX4_INFO("mean_accel: [%.3f, %.3f, %.3f]",
-		//	(double)_last_imu_status.mean_accel[0],
-		//	(double)_last_imu_status.mean_accel[1],
-		//	(double)_last_imu_status.mean_accel[2]);
-
-	//last_print_time = now;
-	//}
-
-
-
-
-
-		perf_end(_loop_perf);
-
-	}
 }
 
 int MarineTakeoff::task_spawn(int argc, char *argv[])

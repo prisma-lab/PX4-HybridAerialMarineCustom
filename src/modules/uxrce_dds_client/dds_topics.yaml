@@ -37,21 +37,21 @@ publications:
 
   - topic: /fmu/out/timesync_status
     type: px4_msgs::msg::TimesyncStatus
-    
+
   - topic: /fmu/out/actuator_outputs_sim
     type: px4_msgs::msg::ActuatorOutputs
-    
+
   - topic: /fmu/out/vehicle_attitude_setpoint
     type: px4_msgs::msg::VehicleAttitudeSetpoint
-    
+
   - topic: /fmu/out/vehicle_thrust_setpoint
     type: px4_msgs::msg::VehicleThrustSetpoint
 
   - topic: /fmu/out/vehicle_torque_setpoint
-    type: px4_msgs::msg::VehicleTorqueSetpoint  
-    
+    type: px4_msgs::msg::VehicleTorqueSetpoint
+
   - topic: /fmu/out/vehicle_imu_status
-    type: px4_msgs::msg::VehicleImuStatus 
+    type: px4_msgs::msg::VehicleImuStatus
 
   # - topic: /fmu/out/vehicle_angular_velocity
   #   type: px4_msgs::msg::VehicleAngularVelocity
@@ -82,6 +82,10 @@ publications:
 
   - topic: /fmu/out/vehicle_trajectory_waypoint_desired
     type: px4_msgs::msg::VehicleTrajectoryWaypoint
+
+    ## custom message
+  - topic: /fmu/out/marine_sync
+    type: px4_msgs::msg::MarineSync
 
 # Create uORB::Publication
 subscriptions:

@@ -10,6 +10,7 @@
 #include <lib/perf/perf_counter.h>
 #include <frequency_estimator/FrequencyEstimator.hpp> // Includi la libreria
 #include <high_frequency_topic_selector/TopicSelector.hpp>
+#include <zoh_handler/ZOHHandler.hpp>
 
 
 
@@ -29,6 +30,7 @@
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_imu_status.h>
 #include <uORB/topics/vehicle_land_detected.h>
+#include <uORB/topics/marine_sync.h>
 
 
 
@@ -62,6 +64,8 @@ private:
 	uORB::Publication<orb_test_s> _orb_test_pub{ORB_ID(orb_test)};
 	uORB::Publication<actuator_servos_s> _actuator_servos_pub{ORB_ID(actuator_servos)};
 	uORB::Publication<actuator_armed_s> _armed_pub{ORB_ID(actuator_armed)};
+	uORB::Publication<marine_sync_s> _marine_sync_pub{ORB_ID(marine_sync)};
+
 
 
 
@@ -113,6 +117,8 @@ private:
 	int  _best_index{-1};        // Qui salviamo il numero del vincitore (0 o 1)
 	bool _att_was_faster{true};  // Ci serve per ricordarci chi ha vinto l'ultima volta
 
+
+	marine_sync_s _sync_msg{};
 	// Parameters
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::SYS_AUTOSTART>) _param_sys_autostart,
