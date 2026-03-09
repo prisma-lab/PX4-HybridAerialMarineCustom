@@ -8,6 +8,9 @@
 
 #include <drivers/drv_hrt.h>
 #include <lib/perf/perf_counter.h>
+#include <frequency_estimator/FrequencyEstimator.hpp> // Includi la libreria
+
+
 
 #include <uORB/Publication.hpp>
 #include <uORB/Subscription.hpp>
@@ -50,15 +53,7 @@ private:
 	void Run() override;
 
 
-	struct FrequencyEstimator {
-        static constexpr size_t MAX_SAMPLES = 256;
-        uint64_t timestamps[MAX_SAMPLES]{};
-        size_t index{0};
-        size_t count{0};
 
-        // Dichiarazione della funzione (senza corpo del codice)
-        float estimate(uint64_t current_timestamp);
-    };
 
 
 
@@ -100,7 +95,7 @@ private:
 	vehicle_attitude_s   _last_attitude{};
         vehicle_imu_status_s _last_imu_status{};
 
-	// Istanze degli estimatori
+	// Istanze per stimare la frequenza dei due topic
 	FrequencyEstimator _att_freq_est;
 	FrequencyEstimator _imu_freq_est;
 

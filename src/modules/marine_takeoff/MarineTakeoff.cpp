@@ -136,11 +136,14 @@ void MarineTakeoff::Run()
 	const bool attitude_updated = _vehicle_attitude_sub.updated();
 	const bool imu_status_updated = _vehicle_imu_status_sub.updated();
 
-	// Aggiorna ultimo messaggio e stima frequenza
+	// Aggiorna e stima frequenza usando la libreria
 	if (attitude_updated && _vehicle_attitude_sub.copy(&_last_attitude)) {
+		// Chiamata alla libreria: passa il timestamp del messaggio
 		_freq_att = _att_freq_est.estimate(_last_attitude.timestamp);
 	}
+
 	if (imu_status_updated && _vehicle_imu_status_sub.copy(&_last_imu_status)) {
+		// Chiamata alla libreria
 		_freq_imu = _imu_freq_est.estimate(_last_imu_status.timestamp);
 	}
 
@@ -163,6 +166,7 @@ void MarineTakeoff::Run()
 	// ===========================
 	bool att_is_faster = (_freq_att >= _freq_imu);
 	bool reference_updated = att_is_faster ? attitude_updated : imu_status_updated;
+	// salva per 10s i dati
 
 	if (reference_updated) {
 		// Salvataggio buffer
@@ -330,28 +334,6 @@ Example of a simple module running out of a work queue.
 	return 0;
 }
 
-
-
-float MarineTakeoff::FrequencyEstimator::estimate(uint64_t current_timestamp)
-{
-    if (current_timestamp == 0) return 0.0f;
-
-    // Inserimento nel buffer circolare
-    timestamps[index] = current_timestamp;
-    index = (index + 1) % MAX_SAMPLES;
-    if (count < MAX_SAMPLES) count++;
-
-    if (count < 2) return 0.0f;
-
-    // Calcolo indici per trovare il Delta Tempo totale
-    size_t oldest_idx = (count < MAX_SAMPLES) ? 0 : index;
-    size_t latest_idx = (index == 0) ? MAX_SAMPLES - 1 : index - 1;
-
-    uint64_t dt_total = timestamps[latest_idx] - timestamps[oldest_idx];
-
-    // Ritorna frequenza in Hz: (N campioni - 1) / (tempo totale in microsecondi / 1e6)
-    return (dt_total > 0) ? (float)(count - 1) / (dt_total / 1e6f) : 0.0f;
-}
 
 extern "C" __EXPORT int marine_takeoff_main(int argc, char *argv[])
 {
