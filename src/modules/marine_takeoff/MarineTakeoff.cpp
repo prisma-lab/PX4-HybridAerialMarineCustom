@@ -164,9 +164,17 @@ void MarineTakeoff::Run()
 	// ===========================
 	// ZOH + Sampling ad ogni aggiornamento del topic più veloce
 	// ===========================
-	bool att_is_faster = (_freq_att >= _freq_imu);
-	bool reference_updated = att_is_faster ? attitude_updated : imu_status_updated;
-	// salva per 10s i dati
+	 TopicSelector::Candidate streams[] = {
+	{"ATT", _freq_att, attitude_updated},
+	{"IMU", _freq_imu, imu_status_updated}
+	};
+
+	// 2. Troviamo il riferimento migliore tramite la libreria
+	const TopicSelector::Candidate* best = TopicSelector::getBestCandidate(streams, 2);
+
+	// 3. Verifichiamo se dobbiamo campionare (ZOH Trigger)
+	// Il trigger scatta solo se il topic più veloce ha ricevuto un nuovo dato
+	bool reference_updated = (best != nullptr) && best->updated;
 
 	if (reference_updated) {
 		// Salvataggio buffer

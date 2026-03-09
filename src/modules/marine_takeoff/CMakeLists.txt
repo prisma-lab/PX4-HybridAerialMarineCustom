@@ -43,6 +43,7 @@ px4_add_module(
 	DEPENDS
 		px4_work_queue
 		frequency_estimator
+		high_frequency_topic_selector
 
 	)
 

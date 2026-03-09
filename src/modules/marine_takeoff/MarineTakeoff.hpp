@@ -9,6 +9,7 @@
 #include <drivers/drv_hrt.h>
 #include <lib/perf/perf_counter.h>
 #include <frequency_estimator/FrequencyEstimator.hpp> // Includi la libreria
+#include <high_frequency_topic_selector/TopicSelector.hpp>
 
 
 
@@ -109,6 +110,8 @@ private:
 	bool _is_logging{false};  // Questo è l'interruttore: false = spento, true = acceso
    	int _file_counter{0};     // Serve per dare nomi diversi ai file: log_0, log_1, ecc.                        // indice corrente nel buffer
 
+	int  _best_index{-1};        // Qui salviamo il numero del vincitore (0 o 1)
+	bool _att_was_faster{true};  // Ci serve per ricordarci chi ha vinto l'ultima volta
 
 	// Parameters
 	DEFINE_PARAMETERS(
