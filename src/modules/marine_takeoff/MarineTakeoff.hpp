@@ -8,9 +8,8 @@
 
 #include <drivers/drv_hrt.h>
 #include <lib/perf/perf_counter.h>
-#include <frequency_estimator/FrequencyEstimator.hpp> // Includi la libreria
-#include <high_frequency_topic_selector/TopicSelector.hpp>
-#include <zoh_handler/ZOHHandler.hpp>
+
+#include<zoh_utils/ZohUtils.hpp>
 
 
 
@@ -100,22 +99,22 @@ private:
 	vehicle_attitude_s   _last_attitude{};
         vehicle_imu_status_s _last_imu_status{};
 
-	// Istanze per stimare la frequenza dei due topic
-	FrequencyEstimator _att_freq_est;
-	FrequencyEstimator _imu_freq_est;
+	// frequency estimator
+	zoh_utils::FrequencyEstimator _att_freq_est;
+	zoh_utils::FrequencyEstimator _imu_freq_est;
 
 	float _freq_att{0.0f};
 	float _freq_imu{0.0f};
 	uint64_t next_sample{0};
-	static constexpr int FFT_SIZE = 256;  // dimensione della FFT
-	float accel_buffer[FFT_SIZE][3];        // buffer per roll / attitude
-	float q_buffer[FFT_SIZE][4];         // buffer per imu vibration / ZOH
+	static constexpr int FFT_SIZE = 256;  // FFT  dimension
+	float accel_buffer[FFT_SIZE][3];        // buffer for q
+	float q_buffer[FFT_SIZE][4];         // buffer for imu
 	int idx{0};
-	bool _is_logging{false};  // Questo è l'interruttore: false = spento, true = acceso
-   	int _file_counter{0};     // Serve per dare nomi diversi ai file: log_0, log_1, ecc.                        // indice corrente nel buffer
+	bool _is_logging{false};  // used to start csv_log
+   	int _file_counter{0};     // used to name file : log_0, log_1 , extc...
 
-	int  _best_index{-1};        // Qui salviamo il numero del vincitore (0 o 1)
-	bool _att_was_faster{true};  // Ci serve per ricordarci chi ha vinto l'ultima volta
+	int  _best_index{-1};        // select number of fastest message
+	bool _att_was_faster{true};  // set to remember last fastest message
 
 
 	marine_sync_s _sync_msg{};

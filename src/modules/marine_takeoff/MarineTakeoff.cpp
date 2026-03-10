@@ -112,7 +112,7 @@ void MarineTakeoff::Run()
 
 		mode_cmd.param1 = 1; // custom mode enabled
 		mode_cmd.param2 = 4;
-		mode_cmd.param3 = 2; // AUTO_TAKEOFF  Mode avvia il navigator altrimenti non parte la modalita di takeoff
+		mode_cmd.param3 = 2; // AUTO_TAKEOFF  Mode  for takeoff
 
 		mode_cmd.target_system = 1;
 		mode_cmd.target_component = 1;
@@ -131,19 +131,19 @@ void MarineTakeoff::Run()
 
 
 	         // ===========================
-	// Lettura topic attitude e IMU
+	// read   veichle_attitude and  IMU
 	// ===========================
 	const bool attitude_updated = _vehicle_attitude_sub.updated();
 	const bool imu_status_updated = _vehicle_imu_status_sub.updated();
 
-	// Aggiorna e stima frequenza usando la libreria
+	// estimate frequency
 	if (attitude_updated && _vehicle_attitude_sub.copy(&_last_attitude)) {
-		// Chiamata alla libreria: passa il timestamp del messaggio
+
 		_freq_att = _att_freq_est.estimate(_last_attitude.timestamp);
 	}
 
 	if (imu_status_updated && _vehicle_imu_status_sub.copy(&_last_imu_status)) {
-		// Chiamata alla libreria
+
 		_freq_imu = _imu_freq_est.estimate(_last_imu_status.timestamp);
 	}
 
@@ -162,50 +162,50 @@ void MarineTakeoff::Run()
 
 
 	// ===========================
-	// ZOH + Sampling ad ogni aggiornamento del topic più veloce
+	// ZOH + Sampling at fastest topic update
 	// ===========================
-	 TopicSelector::Candidate streams[] = {
+	 zoh_utils::TopicSelector::Candidate streams[] = {
 	{"ATT", _freq_att, attitude_updated},
 	{"IMU", _freq_imu, imu_status_updated}
 	};
 
-	// 2. Troviamo il riferimento migliore tramite la libreria
-	const TopicSelector::Candidate* best = TopicSelector::getBestCandidate(streams, 2);
+	// 2. select fastest topic
+	const zoh_utils::TopicSelector::Candidate* best = zoh_utils::TopicSelector::getBestCandidate(streams, 2);
 
-	// 3. Verifichiamo se dobbiamo campionare (ZOH Trigger)
-         // 3. Verifichiamo se dobbiamo campionare (ZOH Trigger)
+	// 3. ZOH Trigger
+
         bool reference_updated = (best != nullptr) && best->updated;
 
         if (reference_updated) {
 
 
 
-                // --- SINCRONIZZAZIONE MESSAGGIO MarineSync ---
+                // --- Synctonization  MarineSync ---
 		_sync_msg.timestamp = hrt_absolute_time();
 
-		// Copia i quaternioni (q è un array di 4 float)
-		ZOHHandler::synchronize(_last_attitude.q, _sync_msg.q, sizeof(_sync_msg.q));
+		//  save syncronized  data
+		zoh_utils::ZOHHandler::synchronize(_last_attitude.q, _sync_msg.q, sizeof(_sync_msg.q));
 
-		// Copia le accelerazioni (accel è un array di 3 float)
-		ZOHHandler::synchronize(_last_imu_status.mean_accel, _sync_msg.accel, sizeof(_sync_msg.accel));
+
+		zoh_utils::ZOHHandler::synchronize(_last_imu_status.mean_accel, _sync_msg.accel, sizeof(_sync_msg.accel));
 
 		_marine_sync_pub.publish(_sync_msg);
 
-                // --- PUNTO 1: REGISTRAZIONE NEL BUFFER CON ZOH ---
+                // --- create buffer  BUFFER WITH  ZOH ---
                 int temp_idx = idx; // Prepariamo il posto nella riga attuale
 
-                // Copiamo i 4 valori dell'Attitude (senza far avanzare idx)
-                ZOHHandler::bufferData(_last_attitude.q, 4, (float*)q_buffer, temp_idx, FFT_SIZE);
 
-                // Copiamo i 3 valori dell'IMU (questo fa avanzare idx e ci dice se il buffer è pieno)
-                bool buffer_pieno = ZOHHandler::bufferData(_last_imu_status.mean_accel, 3, (float*)accel_buffer, idx, FFT_SIZE);
+                zoh_utils::ZOHHandler::bufferData(_last_attitude.q, 4, (float*)q_buffer, temp_idx, FFT_SIZE);
 
-                // --- PUNTO 2: CONTROLLO SALVATAGGIO ---
+
+                bool buffer_pieno = zoh_utils::ZOHHandler::bufferData(_last_imu_status.mean_accel, 3, (float*)accel_buffer, idx, FFT_SIZE);
+
+                // --- PUNTO 2: CHECK SAVING  ---
                 if (buffer_pieno) {
 
                         if (_is_logging) {
                                 char file_path[128];
-                                // Usiamo PX4_STORAGEDIR per essere sicuri di andare sulla SD card
+                                // USE  PX4_STORAGEDIR TO SAVE ON  SD card
                                 snprintf(file_path, sizeof(file_path), PX4_STORAGEDIR "/log_%d.csv", _file_counter++);
 
                                 FILE *csv_file = fopen(file_path, "w");
@@ -223,17 +223,17 @@ void MarineTakeoff::Run()
                                         }
 
                                         fclose(csv_file);
-                                        PX4_INFO("Salvato: %s", file_path);
+                                        PX4_INFO("Saved: %s", file_path);
                                 } else {
-                                        PX4_ERR("Errore! Impossibile creare il file %s", file_path);
+                                        PX4_ERR("Error! no file creation  %s", file_path);
                                 }
                         }
 
-                        // Fondamentale: reset dell'indice per ricominciare a riempire i buffer
+                        //  reset INDEX
                         idx = 0;
                 }
 
-                // Fine del ciclo di performance
+
                 perf_end(_loop_perf);
         }
 }
@@ -270,28 +270,28 @@ int MarineTakeoff::print_status()
 
 int MarineTakeoff::custom_command(int argc, char *argv[])
 {
-    // 1. Controlliamo se il modulo è acceso, altrimenti non possiamo parlargli
+    // 1. CHECK IF MODULE IS ACKTIVE
     if (!is_running()) {
         PX4_ERR("Il modulo non e' avviato! Scrivi prima: marine_takeoff start");
         return 1;
     }
 
-    // 2. Se scrivi "marine_takeoff start_log"
+    // 2. WRITE  "marine_takeoff start_log"  TO SAVE CSV
     if (!strcmp(argv[0], "start_log")) {
-        get_instance()->_is_logging = true; // ACCENDIAMO l'interruttore
-        PX4_INFO(">>> Registrazione CSV INIZIATA!");
+        get_instance()->_is_logging = true;
+        PX4_INFO(">>>  CSV  RECORDING START !");
         return 0;
     }
 
-    // 3. Se scrivi "marine_takeoff stop_log"
+    // 3. WRITE  "marine_takeoff stop_log" TO STOP SAVING CSV
     if (!strcmp(argv[0], "stop_log")) {
-        get_instance()->_is_logging = false; // SPEGNIAMO l'interruttore
-        PX4_INFO(">>> Registrazione CSV FERMATA.");
+        get_instance()->_is_logging = false; //
+        PX4_INFO(">>>  CSV RECORDING  STOP .");
         return 0;
     }
 
-    // Se scrivi qualcosa che non capisce
-    return print_usage("Comando sconosciuto! Usa: start_log o stop_log");
+    //
+    return print_usage("UNKNOWN COMMAND ! Use: start_log o stop_log");
 
 }
 
