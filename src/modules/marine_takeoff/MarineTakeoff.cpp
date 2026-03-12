@@ -149,14 +149,14 @@ void MarineTakeoff::Run()
 
 	///  debug
 
-		static uint64_t last_freq_print = 0;
-             uint64_t now = hrt_absolute_time();
-		if (now - last_freq_print > 1000000) { // 1 secondo
-        		PX4_INFO("--- Frequenze Topics ---");
-			PX4_INFO("Attitude freq: %.2f Hz", (double)_freq_att);
-			PX4_INFO("IMU Status freq: %.2f Hz", (double)_freq_imu);
-			last_freq_print = now;
-	}
+	//	static uint64_t last_freq_print = 0;
+        //     uint64_t now = hrt_absolute_time();
+	//	if (now - last_freq_print > 1000000) { // 1 secondo
+        //		PX4_INFO("--- Frequenze Topics ---");
+	//		PX4_INFO("Attitude freq: %.2f Hz", (double)_freq_att);
+	//		PX4_INFO("IMU Status freq: %.2f Hz", (double)_freq_imu);
+	//		last_freq_print = now;
+	//}
 
 
 
@@ -191,47 +191,14 @@ void MarineTakeoff::Run()
 
 		_marine_sync_pub.publish(_sync_msg);
 
-                // --- create buffer  BUFFER WITH  ZOH ---
-               // int temp_idx = idx; // Prepariamo il posto nella riga attuale
+         // --- create buffer  BUFFER WITH  ZOH ---
+               	// int temp_idx = idx; // Prepariamo il posto nella riga attuale
+		// zoh_utils::ZOHHandler::bufferData(_last_attitude.q, 4, (float*)q_buffer, temp_idx, FFT_SIZE);
 
 
-             //   zoh_utils::ZOHHandler::bufferData(_last_attitude.q, 4, (float*)q_buffer, temp_idx, FFT_SIZE);
 
-
-             //   bool buffer_pieno = zoh_utils::ZOHHandler::bufferData(_last_imu_status.mean_accel, 3, (float*)accel_buffer, idx, FFT_SIZE);
-
-                // --- PUNTO 2: CHECK SAVING  ---
-             //   if (buffer_pieno) {
-
-             //           if (_is_logging) {
-              //                  char file_path[128];
-             //                   // USE  PX4_STORAGEDIR TO SAVE ON  SD card
-              //                  snprintf(file_path, sizeof(file_path), PX4_STORAGEDIR "/log_%d.csv", _file_counter++);
-
-             //                   FILE *csv_file = fopen(file_path, "w");
-
-        //                        if (csv_file) {
-         //                               fprintf(csv_file, "timestamp,qw,qx,qy,qz,acc_x,acc_y,acc_z\n");
-
-         //                               for (int i = 0; i < FFT_SIZE; i++) {
-        //                                        fprintf(csv_file, "%llu,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
-          //                                              (unsigned long long)_last_attitude.timestamp,
-            //                                            (double)q_buffer[i][0], (double)q_buffer[i][1],
-        //                                                (double)q_buffer[i][2], (double)q_buffer[i][3],
-        //                                                (double)accel_buffer[i][0], (double)accel_buffer[i][1],
-        //                                                (double)accel_buffer[i][2]);
                                         }
-//
-        //                                fclose(csv_file);
-        //                                PX4_INFO("Saved: %s", file_path);
-        //                        } else {
-         //                               PX4_ERR("Error! no file creation  %s", file_path);
-        //                        }
-         //               }
 
-                        //  reset INDEX
-        //                idx = 0;
-         //       }
 
 
                 perf_end(_loop_perf);
@@ -270,27 +237,7 @@ int MarineTakeoff::print_status()
 
 int MarineTakeoff::custom_command(int argc, char *argv[])
 {
-    // 1. CHECK IF MODULE IS ACKTIVE
-    if (!is_running()) {
-        PX4_ERR("mode not selecte! write: marine_takeoff start");
-        return 1;
-    }
 
-    // 2. WRITE  "marine_takeoff start_log"  TO SAVE CSV
-    if (!strcmp(argv[0], "start_log")) {
-        get_instance()->_is_logging = true;
-        PX4_INFO(">>>  CSV  RECORDING START !");
-        return 0;
-    }
-
-    // 3. WRITE  "marine_takeoff stop_log" TO STOP SAVING CSV
-    if (!strcmp(argv[0], "stop_log")) {
-        get_instance()->_is_logging = false; //
-        PX4_INFO(">>>  CSV RECORDING  STOP .");
-        return 0;
-    }
-
-    //
     return print_usage("UNKNOWN COMMAND ! Use: start_log o stop_log");
 
 }
