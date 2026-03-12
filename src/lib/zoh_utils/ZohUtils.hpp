@@ -68,6 +68,9 @@ namespace zoh_utils  {
 		* @return const Candidate* pointer to highest frequency message , or nullptr if it fails .
 		*/
 		static const Candidate* getBestCandidate(const Candidate candidates[], size_t count);
+
+		private:
+		static constexpr float FREQ_TOLERANCE = 2.0f;
 	};
 
 
@@ -93,6 +96,75 @@ namespace zoh_utils  {
 		*/
 		static bool bufferData(const float* data, size_t data_len,
 					float* buffer, int &idx, int max_rows);
+	};
+
+
+
+
+        class ZOHProcessor
+	{
+		public:
+
+		/**
+		* @brief Maximum number of topics supported by the processor.
+		*/
+		static constexpr int MAX_TOPICS = 16;
+
+		/**
+		* @brief Maximum size in bytes for each topic's data.
+		*/
+		static constexpr size_t MAX_DATA_SIZE = 64;
+
+		// ----------------------
+		// Input structure for process()
+		// ----------------------
+		/**
+		* @brief Represents a single topic input to the ZOH processor.
+		*/
+		struct Input {
+			const void* data;     /**< Pointer to the topic data (e.g., uORB struct) */
+			uint64_t timestamp;   /**< Timestamp of the topic (from uORB) */
+			size_t size;          /**< Size of the data in bytes */
+			bool updated;         /**< True if the topic has new data this iteration */
+		};
+
+		// ----------------------
+		// Output structure of process()
+		// ----------------------
+		/**
+		* @brief Result of calling process() with multiple topics.
+		*/
+		struct Result {
+			bool updated = false;                     /**< True if the fastest topic updated this iteration */
+			int reference_index = -1;                 /**< Index of the fastest topic in the input array */
+			const void* outputs[MAX_TOPICS] = {};     /**< Pointers to synchronized data (ZOH) for each topic */
+		};
+
+		// ----------------------
+		// Main function
+		// ----------------------
+		/**
+		* @brief Process multiple topics, hold previous values (ZOH), estimate frequencies, and select fastest topic.
+		* @param topics  Array of topic inputs
+		* @param count   Number of topics in the array
+		* @return Result structure containing synchronized outputs and fastest topic info
+		*/
+		Result process(Input topics[], size_t count);
+
+		private:
+
+		// ----------------------
+		// Internal storage
+		// ----------------------
+		/**
+		* @brief Last held values for each topic. Updated automatically on new data.
+		*/
+		uint8_t _hold_data[MAX_TOPICS][MAX_DATA_SIZE] = {};
+
+		/**
+		* @brief Frequency estimators for each topic. Used internally to pick fastest topic.
+		*/
+		FrequencyEstimator _freq_est[MAX_TOPICS];
 	};
 
 }

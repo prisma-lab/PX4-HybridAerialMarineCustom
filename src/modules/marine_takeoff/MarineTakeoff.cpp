@@ -130,66 +130,39 @@ void MarineTakeoff::Run()
 
 
 
-	         // ===========================
-	// read   veichle_attitude and  IMU
-	// ===========================
-	const bool attitude_updated = _vehicle_attitude_sub.updated();
+        // ======================================================
+	  //  UPDATE  VEHICLE_ATTITUDE AND VEHICLE_IMU_STATUS
+	// ======================================================
+
+
+        const bool attitude_updated = _vehicle_attitude_sub.updated();
 	const bool imu_status_updated = _vehicle_imu_status_sub.updated();
 
-	// estimate frequency
-	if (attitude_updated && _vehicle_attitude_sub.copy(&_last_attitude)) {
-
-		_freq_att = _att_freq_est.estimate(_last_attitude.timestamp);
+	if (attitude_updated) {
+		_vehicle_attitude_sub.copy(&_last_attitude);
 	}
 
-	if (imu_status_updated && _vehicle_imu_status_sub.copy(&_last_imu_status)) {
-
-		_freq_imu = _imu_freq_est.estimate(_last_imu_status.timestamp);
+	if (imu_status_updated) {
+		_vehicle_imu_status_sub.copy(&_last_imu_status);
 	}
 
-	///  debug
-
-	//	static uint64_t last_freq_print = 0;
-        //     uint64_t now = hrt_absolute_time();
-	//	if (now - last_freq_print > 1000000) { // 1 secondo
-        //		PX4_INFO("--- Frequenze Topics ---");
-	//		PX4_INFO("Attitude freq: %.2f Hz", (double)_freq_att);
-	//		PX4_INFO("IMU Status freq: %.2f Hz", (double)_freq_imu);
-	//		last_freq_print = now;
-	//}
-
-
-
-
-	// ===========================
+       // ======================================================
 	// ZOH + Sampling at fastest topic update
-	// ===========================
-	 zoh_utils::TopicSelector::Candidate streams[] = {
-	{"ATT", _freq_att, attitude_updated},
-	{"IMU", _freq_imu, imu_status_updated}
+	// ======================================================
+        zoh_utils::ZOHProcessor::Input streams[] = {
+		{_last_attitude.q, _last_attitude.timestamp, sizeof(_last_attitude.q), attitude_updated},
+		{_last_imu_status.mean_accel, _last_imu_status.timestamp, sizeof(_last_imu_status.mean_accel), imu_status_updated}
 	};
 
-	// 2. select fastest topic
-	const zoh_utils::TopicSelector::Candidate* best = zoh_utils::TopicSelector::getBestCandidate(streams, 2);
+	auto result = _zoh_processor.process(streams, 2);
 
-	// 3. ZOH Trigger
-
-        bool reference_updated = (best != nullptr) && best->updated;
-
-        if (reference_updated) {
-
-
-
-                // --- Synctonization  MarineSync ---
-		_sync_msg.timestamp = hrt_absolute_time();
-
-		//  save syncronized  data
-	//	zoh_utils::ZOHHandler::synchronize(_last_attitude.q, _sync_msg.q, sizeof(_sync_msg.q));
-
-
-		zoh_utils::ZOHHandler::synchronize(_last_imu_status.mean_accel, _sync_msg.accel, sizeof(_sync_msg.accel));
-
+	if (result.updated) {
+		zoh_utils::ZOHHandler::synchronize(
+			_last_imu_status.mean_accel,
+			_sync_msg.accel,
+			sizeof(_sync_msg.accel));
 		_marine_sync_pub.publish(_sync_msg);
+	}
 
          // --- create buffer  BUFFER WITH  ZOH ---
                	// int temp_idx = idx; // Prepariamo il posto nella riga attuale
@@ -197,7 +170,7 @@ void MarineTakeoff::Run()
 
 
 
-                                        }
+
 
 
 

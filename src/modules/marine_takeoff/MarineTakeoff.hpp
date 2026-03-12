@@ -115,7 +115,7 @@ private:
 
 	int  _best_index{-1};        // select number of fastest message
 	bool _att_was_faster{true};  // set to remember last fastest message
-
+        zoh_utils::ZOHProcessor _zoh_processor;
 
 	marine_sync_s _sync_msg{};
 	// Parameters
