@@ -157,7 +157,7 @@ void MarineTakeoff::Run()
 	auto result = _zoh_processor.process(streams, 2);
 
 	if (result.updated) {
-		zoh_utils::ZOHHandler::synchronize(
+		zoh_utils::ZOHProcessor::synchronize(
 			_last_imu_status.mean_accel,
 			_sync_msg.accel,
 			sizeof(_sync_msg.accel));

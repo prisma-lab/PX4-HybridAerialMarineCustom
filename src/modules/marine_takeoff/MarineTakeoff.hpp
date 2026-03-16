@@ -99,25 +99,18 @@ private:
 	vehicle_attitude_s   _last_attitude{};
         vehicle_imu_status_s _last_imu_status{};
 
-	// frequency estimator
-	zoh_utils::FrequencyEstimator _att_freq_est;
-	zoh_utils::FrequencyEstimator _imu_freq_est;
+         zoh_utils::ZOHProcessor _zoh_processor;
 
-	float _freq_att{0.0f};
-	float _freq_imu{0.0f};
-	uint64_t next_sample{0};
-	static constexpr int FFT_SIZE = 256;  // FFT  dimension
-	float accel_buffer[FFT_SIZE][3];        // buffer for q
-	float q_buffer[FFT_SIZE][4];         // buffer for imu
-	int idx{0};
-	bool _is_logging{false};  // used to start csv_log
-   	int _file_counter{0};     // used to name file : log_0, log_1 , extc...
+        uint64_t next_sample{0};
+        static constexpr int FFT_SIZE = 256;
+        float accel_buffer[FFT_SIZE][3];
+        float q_buffer[FFT_SIZE][4];
+        int idx{0};
 
-	int  _best_index{-1};        // select number of fastest message
-	bool _att_was_faster{true};  // set to remember last fastest message
-        zoh_utils::ZOHProcessor _zoh_processor;
+        bool _is_logging{false};
+        int _file_counter{0};
 
-	marine_sync_s _sync_msg{};
+        marine_sync_s _sync_msg{};
 	// Parameters
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::SYS_AUTOSTART>) _param_sys_autostart,

@@ -1,170 +1,99 @@
+/**
+ * @file ZohUtils.hpp
+ * Zero-Order Hold (ZOH) processor and frequency-based topic selector.
+ */
+
 #pragma once
 
 #include <cstdint>
 #include <cstddef>
+#include <cstring>
 
-namespace zoh_utils  {
+namespace zoh_utils {
 
+static constexpr size_t MAX_SAMPLES = 10;
+static constexpr size_t MAX_TOPICS = 5;
+static constexpr float FREQ_TOLERANCE = 0.5f;
+static constexpr size_t MAX_DATA_SIZE = 128;
 
-	/**
-	* @class FrequencyEstimator
-	* @brief // Utility for estimating the sampling frequency using a circular buffer of timestamps.
-	*/
-	class FrequencyEstimator
-	{
-		public:
-		static constexpr size_t MAX_SAMPLES = 256;
+/**
+ * @class ZOHProcessor
+ * * Manages multiple data streams, estimates their publishing frequencies,
+ * and synchronizes them using a Zero-Order Hold approach based on the fastest update.
+ */
+class ZOHProcessor {
+public:
+    /**
+     * @struct Input
+     * Input structure for each topic to be processed.
+     */
+    struct Input {
+        void* data;          /**< Pointer to the topic data buffer */
+        uint64_t timestamp;  /**< Current timestamp of the data (microseconds) */
+        size_t size;         /**< Size of the data buffer in bytes */
+        bool updated;        /**< Flag indicating if new data is available in this cycle */
+    };
 
-		FrequencyEstimator() = default;
-		~FrequencyEstimator() = default;
+    /**
+     * @struct Result
+     * Result of the processing cycle.
+     */
+    struct Result {
+        void* outputs[MAX_TOPICS]; /**< Array of pointers to the ZOH-buffered data */
+        int reference_index;       /**< Index of the fastest/reference topic */
+        bool updated;              /**< True if the reference topic was updated this cycle */
+    };
 
-		/**
-		* @brief insert a  timestamp to  compute average frequency in the  buffer.
-		* @param current_timestamp  Current time in microseconds (us).
-		*/
-		float estimate(uint64_t current_timestamp);
+    ZOHProcessor() { reset(); }
 
-		void reset();
+    /**
+     * Process multiple input streams, update internal frequency estimates,
+     * and determine the best (fastest) topic.
+     * @return Result containing synchronized pointers and update status.
+     */
+    Result process(Input topics[], size_t count);
 
-		private:
-		uint64_t _timestamps[MAX_SAMPLES]{};
-		size_t   _index{0};
-		size_t   _count{0};
-	};
+    /**
+     * Reset internal state, frequency counters, and data buffers.
+     */
+    void reset();
 
+    /**
+     * Utility method for memory synchronization (memcpy wrapper).
+     */
+    static void synchronize(const void* src, void* dst, size_t size);
 
-		/**
-	* @class TopicSelector
-	* @brief Utility to select message with highest frequency
-	*/
-	class TopicSelector
-	{
-		public:
-		/**
-		* @struct Candidate
-		* @brief select message for the frequency comparison .
-		*/
-		struct Candidate {
-			const char* identifier; ///message name
-			float       frequency;  /// Frequency in Hz
-			bool        updated;    /// cycle update status
-		};
+    /**
+     * Utility method to buffer data into a matrix-like structure (e.g., for FFT).
+     * @return True if the buffer reached the max_rows limit.
+     */
+    static bool bufferData(const float* data, size_t data_len, float* buffer, int &idx, int max_rows);
 
-		TopicSelector() = default;
-		~TopicSelector() = default;
+private:
+    /**
+     * @struct FreqState
+     * Internal state for frequency estimation per topic.
+     */
+    struct FreqState {
+        uint64_t timestamps[MAX_SAMPLES];
+        size_t index;
+        size_t count;
+        float current_freq;
+    };
 
-		/**
-		* @brief select best candidate index : the one with the highest frequency
-		* @param candidates Array of stract  Candidate.
-		* @param count number of candidate in the array .
-		* @return int index of   the choosen message .
-		*/
-		static int getBestIndex(const Candidate candidates[], size_t count);
+    FreqState _freq_states[MAX_TOPICS];
+    uint8_t   _hold_data[MAX_TOPICS][MAX_DATA_SIZE];
 
-		/**
-		* @brief return pointer to highest frequency message .
-		* @param candidates Array of stract  Candidate.
-		* @param count number of candidate in the array .
-		* @return const Candidate* pointer to highest frequency message , or nullptr if it fails .
-		*/
-		static const Candidate* getBestCandidate(const Candidate candidates[], size_t count);
+    /**
+     * Update frequency estimation for a specific topic index.
+     */
+    float estimate_frequency(size_t topic_idx, uint64_t timestamp);
 
-		private:
-		static constexpr float FREQ_TOLERANCE = 2.0f;
-	};
+    /**
+     * Select the best candidate index based on frequency and update status.
+     */
+    int select_best_topic(const float frequencies[], const bool updated[], size_t count);
+};
 
+} // namespace zoh_utils
 
-	class ZOHHandler
-	{
-		public:
-		/**
-		* @brief Generic data copy from a source to a destination (ZOH).
-		* @param src   Pointer to the source data (e.g., a uORB struct)
-		* @param dst   Pointer to the destination (e.g., a field in a ROS message)
-		* @param size  Number of bytes to copy
-		*/
-		static void synchronize(const void* src, void* dst, size_t size);
-
-		/**
-		* @brief Inserts a set of floats into a buffer row by row.
-		* @param data      Source float array
-		* @param data_len  Number of elements in data
-		* @param buffer    Pointer to the buffer (flattened or multidimensional)
-		* @param idx       Current row index (will be incremented)
-		* @param max_rows  Maximum number of rows in the buffer
-		* @return true if the buffer is full
-		*/
-		static bool bufferData(const float* data, size_t data_len,
-					float* buffer, int &idx, int max_rows);
-	};
-
-
-
-
-        class ZOHProcessor
-	{
-		public:
-
-		/**
-		* @brief Maximum number of topics supported by the processor.
-		*/
-		static constexpr int MAX_TOPICS = 16;
-
-		/**
-		* @brief Maximum size in bytes for each topic's data.
-		*/
-		static constexpr size_t MAX_DATA_SIZE = 64;
-
-		// ----------------------
-		// Input structure for process()
-		// ----------------------
-		/**
-		* @brief Represents a single topic input to the ZOH processor.
-		*/
-		struct Input {
-			const void* data;     /**< Pointer to the topic data (e.g., uORB struct) */
-			uint64_t timestamp;   /**< Timestamp of the topic (from uORB) */
-			size_t size;          /**< Size of the data in bytes */
-			bool updated;         /**< True if the topic has new data this iteration */
-		};
-
-		// ----------------------
-		// Output structure of process()
-		// ----------------------
-		/**
-		* @brief Result of calling process() with multiple topics.
-		*/
-		struct Result {
-			bool updated = false;                     /**< True if the fastest topic updated this iteration */
-			int reference_index = -1;                 /**< Index of the fastest topic in the input array */
-			const void* outputs[MAX_TOPICS] = {};     /**< Pointers to synchronized data (ZOH) for each topic */
-		};
-
-		// ----------------------
-		// Main function
-		// ----------------------
-		/**
-		* @brief Process multiple topics, hold previous values (ZOH), estimate frequencies, and select fastest topic.
-		* @param topics  Array of topic inputs
-		* @param count   Number of topics in the array
-		* @return Result structure containing synchronized outputs and fastest topic info
-		*/
-		Result process(Input topics[], size_t count);
-
-		private:
-
-		// ----------------------
-		// Internal storage
-		// ----------------------
-		/**
-		* @brief Last held values for each topic. Updated automatically on new data.
-		*/
-		uint8_t _hold_data[MAX_TOPICS][MAX_DATA_SIZE] = {};
-
-		/**
-		* @brief Frequency estimators for each topic. Used internally to pick fastest topic.
-		*/
-		FrequencyEstimator _freq_est[MAX_TOPICS];
-	};
-
-}

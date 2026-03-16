@@ -3,146 +3,89 @@
 
 namespace zoh_utils {
 
-    // --- FrequencyEstimator Implementation ---
-    float FrequencyEstimator::estimate(uint64_t current_timestamp)
-    {
-        if (current_timestamp == 0) {
-            return 0.0f;
+ZOHProcessor::Result ZOHProcessor::process(Input topics[], size_t count) {
+    Result r{};
+    r.reference_index = -1;
+    r.updated = false;
+
+    if (count == 0 || count > MAX_TOPICS) return r;
+
+    float current_frequencies[MAX_TOPICS];
+    bool updated_flags[MAX_TOPICS];
+
+    for (size_t i = 0; i < count; i++) {
+        Input &t = topics[i];
+        updated_flags[i] = t.updated;
+
+        // 1. estimate frequency
+        if (t.updated) {
+            current_frequencies[i] = estimate_frequency(i, t.timestamp);
+
+            // 2. zoh
+            size_t sz = (t.size > MAX_DATA_SIZE) ? MAX_DATA_SIZE : t.size;
+            memcpy(_hold_data[i], t.data, sz);
+        } else {
+            current_frequencies[i] = _freq_states[i].current_freq;
         }
 
-        // circular buffer
-        _timestamps[_index] = current_timestamp;
-        _index = (_index + 1) % MAX_SAMPLES;
-
-        if (_count < MAX_SAMPLES) {
-            _count++;
-        }
-
-        if (_count < 2) {
-            return 0.0f;
-        }
-
-        // IDENTIFY LAST INDEX : The oldest element is at the current position _index if the buffer is full
-        const size_t oldest_idx = (_count < MAX_SAMPLES) ? 0 : _index;
-        const size_t latest_idx = (_index == 0) ? MAX_SAMPLES - 1 : _index - 1;
-
-        const uint64_t dt_total = _timestamps[latest_idx] - _timestamps[oldest_idx];
-
-        // RETURN FREQUENCY IN Hz
-        if (dt_total > 0) {
-            return static_cast<float>(_count - 1) / (static_cast<float>(dt_total) / 1000000.0f);
-        }
-
-        return 0.0f;
+        // pointer to last saved data
+        r.outputs[i] = _hold_data[i];
     }
 
-    void FrequencyEstimator::reset()
-    {
-        _index = 0;
-        _count = 0;
-        memset(_timestamps, 0, sizeof(_timestamps));
+    // 3. select index of fastest message
+    int best_idx = select_best_topic(current_frequencies, updated_flags, count);
+
+    if (best_idx != -1 && updated_flags[best_idx]) {
+        r.updated = true;
+        r.reference_index = best_idx;
     }
 
-    // --- TopicSelector Implementation ---
-    int TopicSelector::getBestIndex(const Candidate candidates[], size_t count)
-    {
-        if (count == 0) {
-            return -1;
-        }
+    return r;
+}
 
-        int best_idx = 0;
-        float best_freq = candidates[0].frequency;
+float ZOHProcessor::estimate_frequency(size_t i, uint64_t ts) {
+    if (ts == 0) return 0.0f;
 
-        for (size_t i = 1; i < count; ++i) {
+    FreqState &s = _freq_states[i];
+    s.timestamps[s.index] = ts;
+    s.index = (s.index + 1) % MAX_SAMPLES;
+    if (s.count < MAX_SAMPLES) s.count++;
 
-            float freq = candidates[i].frequency;
+    if (s.count < 2) return 0.0f;
 
-            // change index only if the topic is cleary faster it is to avoid jitter
-            if ((freq - best_freq) > FREQ_TOLERANCE) {
-                best_freq = freq;
+    size_t oldest = (s.count < MAX_SAMPLES) ? 0 : s.index;
+    size_t latest = (s.index == 0) ? MAX_SAMPLES - 1 : s.index - 1;
+
+    uint64_t dt = s.timestamps[latest] - s.timestamps[oldest];
+    if (dt > 0) {
+        s.current_freq = static_cast<float>(s.count - 1) / (static_cast<float>(dt) / 1000000.0f);
+    }
+    return s.current_freq;
+}
+
+int ZOHProcessor::select_best_topic(const float freqs[], const bool updated[], size_t count) {
+    int best_idx = -1;
+    float max_f = -1.0f;
+
+    for (size_t i = 0; i < count; i++) {
+        // check if it is faster than the pevious selected with a tolerance
+        if (updated[i]) {
+            if (best_idx == -1 || (freqs[i] - max_f) > FREQ_TOLERANCE) {
+                max_f = freqs[i];
                 best_idx = static_cast<int>(i);
             }
         }
-
-        return best_idx;
     }
+    return best_idx;
+}
 
-    const TopicSelector::Candidate* TopicSelector::getBestCandidate(const Candidate candidates[], size_t count)
-    {
-        int index = getBestIndex(candidates, count);
+void ZOHProcessor::synchronize(const void* src, void* dst, size_t size) {
+    if (src && dst) memcpy(dst, src, size);
+}
 
-        if (index != -1) {
-            return &candidates[index];
-        }
-
-        return nullptr;
-    }
-
-    // --- ZOHHandler Implementation ---
-    void ZOHHandler::synchronize(const void* src, void* dst, size_t size)
-    {
-        if (src != nullptr && dst != nullptr) {
-            memcpy(dst, src, size);
-        }
-    }
-
-    bool ZOHHandler::bufferData(const float* data, size_t data_len,
-                            float* buffer, int &idx, int max_rows)
-    {
-        if (idx >= 0 && idx < max_rows) {
-            // Compute the offset in the buffer (assuming a linear buffer or contiguous rows)
-            float* target_row = buffer + (idx * data_len);
-            memcpy(target_row, data, data_len * sizeof(float));
-
-            idx++;
-            return (idx >= max_rows);
-        }
-        return true;
-    }
-
-
-    ZOHProcessor::Result ZOHProcessor::process(Input topics[], size_t count)
-    {
-        Result r{};
-
-        if (count == 0 || count > MAX_TOPICS) {
-            return r; // nothing to do
-        }
-
-        // 1️ Build candidates and update holding
-        TopicSelector::Candidate candidates[MAX_TOPICS];
-
-        for (size_t i = 0; i < count; i++) {
-            Input &t = topics[i];
-
-            // Estimate frequency internally if topic updated
-            float freq = 0.0f;
-            if (t.updated) {
-                freq = _freq_est[i].estimate(t.timestamp);
-            }
-
-            candidates[i].frequency = freq;
-            candidates[i].updated = t.updated;
-
-            // Update holding if new data
-            if (t.updated) {
-                size_t sz = t.size;
-                if (sz > sizeof(_hold_data[i])) sz = sizeof(_hold_data[i]);
-                memcpy(_hold_data[i], t.data, sz);
-            }
-
-            // Assign output always from holding
-            r.outputs[i] = _hold_data[i];
-        }
-
-        //  Choose the fastest topic
-        const TopicSelector::Candidate* best = TopicSelector::getBestCandidate(candidates, count);
-        if (best && best->updated) {
-            r.updated = true;
-            r.reference_index = static_cast<int>(best - candidates);
-        }
-
-        return r;
-    }
+void ZOHProcessor::reset() {
+    memset(_freq_states, 0, sizeof(_freq_states));
+    memset(_hold_data, 0, sizeof(_hold_data));
+}
 
 } // namespace zoh_utils
