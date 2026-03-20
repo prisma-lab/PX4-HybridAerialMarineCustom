@@ -8,6 +8,9 @@ MarineTakeoff::MarineTakeoff() :
 
 MarineTakeoff::~MarineTakeoff()
 {
+	if (_fft_cfg) {
+                free(_fft_cfg);
+        }
 	perf_free(_loop_perf);
 	perf_free(_loop_interval_perf);
 }
@@ -15,7 +18,12 @@ MarineTakeoff::~MarineTakeoff()
 bool MarineTakeoff::init()
 {
 
+        _fft_cfg = kiss_fftr_alloc(FFT_SIZE, 0, nullptr, nullptr);
 
+        if (_fft_cfg == nullptr) {
+                PX4_ERR("FFT allocation failed!");
+                return false;
+        }
 	// alternatively, Run on fixed interval
 	 ScheduleOnInterval(2_ms);
 
@@ -157,17 +165,35 @@ void MarineTakeoff::Run()
 	auto result = _zoh_processor.process(streams, 2);
 
 	if (result.updated) {
-		zoh_utils::ZOHProcessor::synchronize(
-			_last_imu_status.mean_accel,
-			_sync_msg.accel,
-			sizeof(_sync_msg.accel));
-		_marine_sync_pub.publish(_sync_msg);
-	}
+        // Sync data
+        zoh_utils::ZOHProcessor::synchronize(_last_imu_status.mean_accel, _sync_msg.accel, sizeof(_sync_msg.accel));
+        _marine_sync_pub.publish(_sync_msg);
 
-         // --- create buffer  BUFFER WITH  ZOH ---
-               	// int temp_idx = idx; // Prepariamo il posto nella riga attuale
-		// zoh_utils::ZOHHandler::bufferData(_last_attitude.q, 4, (float*)q_buffer, temp_idx, FFT_SIZE);
+        // Prepare pointers for the 7 buckets
+        const float* sources[] = {
+                &_last_attitude.q[0], &_last_attitude.q[1], &_last_attitude.q[2], &_last_attitude.q[3],
+                &_sync_msg.accel[0], &_sync_msg.accel[1], &_sync_msg.accel[2]
+        };
 
+        float* destinations[] = {
+                _buf_q0, _buf_q1, _buf_q2, _buf_q3,
+                _buf_ax, _buf_ay, _buf_az
+        };
+
+        // Fill all 7 buckets at once
+        bool full = zoh_utils::ZOHProcessor::bufferDataMulti(sources, destinations, 7, _fft_idx, FFT_SIZE);
+
+        if (full) {
+                // MAGIC: Perform FFT on Z Acceleration
+                kiss_fftr(_fft_cfg, _buf_az, _fft_out);
+
+                // Print the result (DC component = average of the signal)
+                float dc_offset = _fft_out[0].r / FFT_SIZE;
+                PX4_INFO("FFT DONE! Avg Accel Z: %.3f", (double)dc_offset);
+
+                _fft_idx = 0; // Reset
+        }
+    }
 
 
 

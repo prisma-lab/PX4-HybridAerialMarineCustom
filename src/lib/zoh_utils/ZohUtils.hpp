@@ -64,10 +64,18 @@ public:
     static void synchronize(const void* src, void* dst, size_t size);
 
     /**
-     * Utility method to buffer data into a matrix-like structure (e.g., for FFT).
-     * @return True if the buffer reached the max_rows limit.
-     */
-    static bool bufferData(const float* data, size_t data_len, float* buffer, int &idx, int max_rows);
+    * Buffers multiple synchronized data streams into a matrix-like structure.
+    * @param data_sources Array of pointers to current topic data (e.g., {q, accel})
+    * @param lens Array of lengths for each data source (e.g., {4, 3})
+    * @param buffers Array of pointers to the destination buffers
+    * @param num_sources Number of data groups being passed
+    * @param idx Reference to the current row index
+    * @param max_rows Maximum number of samples (FFT_SIZE)
+    * @return True if the buffer reached the max_rows limit.
+    */
+    static bool bufferDataMulti(const float* data_sources[],
+                            float* buffers[], size_t num_sources,
+                            int &idx, int max_rows);
 
 private:
     /**

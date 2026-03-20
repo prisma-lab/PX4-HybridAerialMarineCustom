@@ -3,6 +3,29 @@
 
 namespace zoh_utils {
 
+bool ZOHProcessor::bufferDataMulti(const float* data_sources[], float* buffers[],
+                                  size_t num_channels, int &idx, int max_rows)
+{
+    // Se non abbiamo ancora riempito i 128 posti...
+    if (idx >= 0 && idx < max_rows) {
+        for (size_t i = 0; i < num_channels; i++) {
+            // Se i puntatori sono validi (non vuoti)
+            if (data_sources[i] != nullptr && buffers[i] != nullptr) {
+                // Metti il singolo valore nel posto 'idx' del buffer 'i'
+                buffers[i][idx] = *data_sources[i];
+            }
+        }
+
+        // Passiamo al prossimo posto (riga)
+        idx++;
+
+        // Restituisce true se abbiamo appena riempito l'ultimo posto (127)
+        return (idx >= max_rows);
+    }
+
+    return true;
+}
+
 ZOHProcessor::Result ZOHProcessor::process(Input topics[], size_t count) {
     Result r{};
     r.reference_index = -1;

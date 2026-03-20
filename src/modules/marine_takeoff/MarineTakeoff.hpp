@@ -10,6 +10,7 @@
 #include <lib/perf/perf_counter.h>
 
 #include<zoh_utils/ZohUtils.hpp>
+#include<kissFFT/kiss_fftr.h>
 
 
 
@@ -102,15 +103,33 @@ private:
          zoh_utils::ZOHProcessor _zoh_processor;
 
         uint64_t next_sample{0};
-        static constexpr int FFT_SIZE = 256;
-        float accel_buffer[FFT_SIZE][3];
-        float q_buffer[FFT_SIZE][4];
-        int idx{0};
+
 
         bool _is_logging{false};
         int _file_counter{0};
 
         marine_sync_s _sync_msg{};
+
+
+	static constexpr size_t FFT_SIZE = 128;
+
+	// 4 (Attitude)
+	float _buf_q0[FFT_SIZE];
+	float _buf_q1[FFT_SIZE];
+	float _buf_q2[FFT_SIZE];
+	float _buf_q3[FFT_SIZE];
+
+	// 3  Acceleration (Movement)
+	float _buf_ax[FFT_SIZE];
+	float _buf_ay[FFT_SIZE];
+	float _buf_az[FFT_SIZE];
+
+	int _fft_idx{0}; // Shared counter for all
+
+	// FFT tools
+	kiss_fftr_cfg _fft_cfg{nullptr};
+	kiss_fft_cpx _fft_out[FFT_SIZE / 2 + 1];
+
 	// Parameters
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::SYS_AUTOSTART>) _param_sys_autostart,
