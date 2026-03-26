@@ -169,19 +169,31 @@ void MarineTakeoff::Run()
         zoh_utils::ZOHProcessor::synchronize(_last_imu_status.mean_accel, _sync_msg.accel, sizeof(_sync_msg.accel));
         _marine_sync_pub.publish(_sync_msg);
 
-        // Prepare pointers for the 7 buckets
-        const float* sources[] = {
-                &_last_attitude.q[0], &_last_attitude.q[1], &_last_attitude.q[2], &_last_attitude.q[3],
-                &_sync_msg.accel[0], &_sync_msg.accel[1], &_sync_msg.accel[2]
-        };
 
-        float* destinations[] = {
-                _buf_q0, _buf_q1, _buf_q2, _buf_q3,
-                _buf_ax, _buf_ay, _buf_az
-        };
+        // 2. Creazione del Quaternione (usa i dati dell'attitude sincronizzata)
+	Quatf q(_last_attitude.q);
 
-        // Fill all 7 buckets at once
-        bool full = zoh_utils::ZOHProcessor::bufferDataMulti(sources, destinations, 7, _fft_idx, FFT_SIZE);
+	// 3. Vettore accelerazione dal messaggio sincronizzato
+	Vector3f acc_body(_sync_msg.accel[0], _sync_msg.accel[1], _sync_msg.accel[2]);
+
+	// 4. Rotazione nel World Frame
+	// In Matrix, q.rotateVector(v) ruota il vettore dal Body al World frame
+	Vector3f acc_world = q.rotateVector(acc_body);
+
+	// 5. Compensazione Gravità
+	// PX4 usa lo standard NED (North-East-Down).
+	// Se il drone è fermo, acc_world(2) (Z-down) è circa -9.8 m/s^2.
+	// Sommiamo 9.80665f per centrare il segnale sullo zero.
+	float acc_z_pure = acc_world(2) + 9.80665f;
+
+	// 6. Riempimento Buffer FFT
+
+	const float* src_list[] = { &acc_z_pure };
+	float* dst_list[] = { _buf_az };
+
+	// Ora passiamo gli array alla funzione. '1' indica che stiamo passando un solo segnale.
+	bool full = zoh_utils::ZOHProcessor::bufferDataMulti(src_list, dst_list, 1, _fft_idx, FFT_SIZE);
+
 
         if (full) {
                 // MAGIC: Perform FFT on Z Acceleration

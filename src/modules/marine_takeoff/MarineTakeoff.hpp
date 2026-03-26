@@ -33,12 +33,19 @@
 #include <uORB/topics/marine_sync.h>
 
 
+#include <lib/matrix/matrix/math.hpp> // Se usi le librerie Matrix di PX4
+
 
 
 
 
 
 using namespace time_literals;
+using matrix::Eulerf;
+using matrix::Quatf;
+using matrix::Vector3f;
+using matrix::Vector2f;
+using matrix::SquareMatrix;
 
 class MarineTakeoff : public ModuleBase<MarineTakeoff>, public ModuleParams, public px4::ScheduledWorkItem
 {
