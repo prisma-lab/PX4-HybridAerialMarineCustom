@@ -118,7 +118,7 @@ private:
         marine_sync_s _sync_msg{};
 
 
-	static constexpr size_t FFT_SIZE = 128;
+	static constexpr size_t FFT_SIZE = 256;
 
 	// 4 (Attitude)
 	float _buf_q0[FFT_SIZE];
@@ -131,11 +131,22 @@ private:
 	float _buf_ay[FFT_SIZE];
 	float _buf_az[FFT_SIZE];
 
-	int _fft_idx{0}; // Shared counter for all
 
-	// FFT tools
-	kiss_fftr_cfg _fft_cfg{nullptr};
-	kiss_fft_cpx _fft_out[FFT_SIZE / 2 + 1];
+
+
+	kiss_fftr_cfg _fft_cfg{nullptr};      // Forward FFT config
+	kiss_fftr_cfg _fft_inv_cfg{nullptr};  // Inverse FFT config
+
+	// FFT Buffers
+
+	               // Input: Vertical Acceleration
+	kiss_fft_cpx _fft_out[FFT_SIZE / 2 + 1]{}; // Output: Frequency Bins
+	kiss_fft_cpx _fft_integrated[FFT_SIZE / 2 + 1]{}; // Processed Bins
+	float _displacement_output[FFT_SIZE]{};    // Final Heave (m)
+
+	int _fft_idx{0};
+	float _actual_fs{250.0f}; // Default sampling freq
+	int _skip_count{0}; // Add this to your private variables
 
 	// Parameters
 	DEFINE_PARAMETERS(

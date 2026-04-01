@@ -6,24 +6,32 @@ namespace zoh_utils {
 bool ZOHProcessor::bufferDataMulti(const float* data_sources[], float* buffers[],
                                   size_t num_channels, int &idx, int max_rows)
 {
-    // Se non abbiamo ancora riempito i 128 posti...
-    if (idx >= 0 && idx < max_rows) {
+    // CASE 1: Buffer is not full yet - Fill it normally
+    if (idx < max_rows) {
         for (size_t i = 0; i < num_channels; i++) {
-            // Se i puntatori sono validi (non vuoti)
             if (data_sources[i] != nullptr && buffers[i] != nullptr) {
-                // Metti il singolo valore nel posto 'idx' del buffer 'i'
                 buffers[i][idx] = *data_sources[i];
             }
         }
-
-        // Passiamo al prossimo posto (riga)
         idx++;
-
-        // Restituisce true se abbiamo appena riempito l'ultimo posto (127)
-        return (idx >= max_rows);
+        return (idx >= max_rows); // Returns true exactly when it hits the limit
     }
 
-    return true;
+    // CASE 2: Buffer IS full - Perform Circular Shift (Sliding Window)
+    for (size_t i = 0; i < num_channels; i++) {
+        if (data_sources[i] != nullptr && buffers[i] != nullptr) {
+
+            // Shift all elements left: [1,2,3] -> [2,3,3]
+            for (int j = 0; j < (max_rows - 1); j++) {
+                buffers[i][j] = buffers[i][j + 1];
+            }
+
+            // Insert newest data at the end: [2,3,new]
+            buffers[i][max_rows - 1] = *data_sources[i];
+        }
+    }
+
+    return true; // Always returns true because the buffer stays full
 }
 
 ZOHProcessor::Result ZOHProcessor::process(Input topics[], size_t count) {

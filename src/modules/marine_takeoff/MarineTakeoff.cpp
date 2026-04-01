@@ -19,7 +19,7 @@ bool MarineTakeoff::init()
 {
 
         _fft_cfg = kiss_fftr_alloc(FFT_SIZE, 0, nullptr, nullptr);
-
+	_fft_inv_cfg=kiss_fftr_alloc(FFT_SIZE, 1, nullptr, nullptr);
         if (_fft_cfg == nullptr) {
                 PX4_ERR("FFT allocation failed!");
                 return false;
@@ -188,66 +188,76 @@ void MarineTakeoff::Run()
 	// and NEGATIVE values indicate upward acceleration.
 	float acc_z_pure = acc_world(2) + 9.80665f;
 
-	// 6. Fill  Buffer FFT
+	// --- STEP 1: DECIMATION (Slow down from 250Hz to 25Hz) ---
+//_skip_count++;
+//if (_skip_count >= 10) {
+ //   _skip_count = 0;
 
-	const float* src_list[] = { &acc_z_pure };
-	float* dst_list[] = { _buf_az };
+    const float* src_list[] = { &acc_z_pure };
+    float* dst_list[] = { _buf_az };
 
-	// Now let’s pass the arrays to the function. “1” indicates that we are passing a single signal
-	bool full = zoh_utils::ZOHProcessor::bufferDataMulti(src_list, dst_list, 1, _fft_idx, FFT_SIZE);
+    // This calls your updated circular logic:
+    // It fills until max_rows, then starts shifting left.
+    bool buffer_ready = zoh_utils::ZOHProcessor::bufferDataMulti(src_list, dst_list, 1, _fft_idx, FFT_SIZE);
 
+    if (buffer_ready) {
+        // --- STEP 2: COPY TO WORK BUFFER ---
+        // CRITICAL: We copy _buf_az to work_buf so we don't ruin the
+        // raw history with Mean Removal and Windowing.
+        float work_buf[FFT_SIZE];
+        float sum = 0.0f;
 
-         if (full) {
+        for (size_t i = 0; i < FFT_SIZE; i++) {
+            work_buf[i] = _buf_az[i];
+            sum += work_buf[i];
+        }
 
-		// 1. Calculate Mean using the actual buffer size variable
-		float sum = 0.0f;
-		for (size_t i= 0; i < FFT_SIZE; i++) {
-			sum += _buf_az[i];
-		}
-		float mean = sum / (float)FFT_SIZE;
+        // --- STEP 3: PRE-PROCESSING ---
+        float mean = sum / (float)FFT_SIZE;
+        for (size_t i = 0; i < FFT_SIZE; i++) {
+            work_buf[i] -= mean;
+            // Hanning Window to fix the spectral leakage (the 4.63m error)
+            float window = 0.5f * (1.0f - cosf(2.0f * (float)M_PI * (float)i / (float)(FFT_SIZE - 1)));
+            work_buf[i] *= window;
+        }
 
-		// 2. Center the data
-		// This removes ANY bias (gravity, sensor offset, tilt)
-		// regardless of the value.
-		for (size_t i = 0; i < FFT_SIZE; i++) {
-			_buf_az[i] -= mean;
-		}
+        // --- STEP 4: FORWARD FFT ---
+        float effective_fs = _actual_fs; // 10.0f; // 25.0 Hz
+        float df = effective_fs / (float)FFT_SIZE;
+        kiss_fftr(_fft_cfg, work_buf, _fft_out);
 
-		// Do  FFT
-		// _buf_az: array of float (input)
-		// _fft_out: array of kiss_fft_cpx (output)
-		kiss_fftr(_fft_cfg, _buf_az, _fft_out);
+        // --- STEP 5: FREQUENCY DOMAIN INTEGRATION ---
+        // Clean the integration buffer first
+        for (size_t i = 0; i <= (FFT_SIZE / 2); i++) {
+            _fft_integrated[i].r = 0.0f;
+            _fft_integrated[i].i = 0.0f;
+        }
 
-		// useful  bin number
-		int num_bins = FFT_SIZE / 2;
+        for (size_t bin_idx = 1; bin_idx <= (FFT_SIZE / 2); bin_idx++) {
+            float freq = bin_idx * df;
 
-		for (int k = 0; k <= num_bins; k++) {
+            // General Guard: 0.05Hz to 1.5Hz covers most ocean swells
+            if (freq > 0.05f && freq < 2.0f) {
+                float omega = 2.0f * (float)M_PI * freq;
+                float scale = -1.0f / (omega * omega); // Double integration (Accel -> Disp)
 
-			float real = _fft_out[k].r;
-			float imag = _fft_out[k].i;
+                _fft_integrated[bin_idx].r = _fft_out[bin_idx].r * scale;
+                _fft_integrated[bin_idx].i = _fft_out[bin_idx].i * scale;
+            }
+        }
 
-			// compute amplitude
-			float amplitude = sqrtf(real*real + imag*imag);
+        // --- STEP 6: INVERSE FFT (Back to Time Domain) ---
+        kiss_fftri(_fft_inv_cfg, _fft_integrated, _displacement_output);
+	// This multiplier is key to matching your 2.3m simulation
 
+	static int print_counter = 0;
+	if (print_counter++ >= 100) { // Print every 40ms instead of every 4ms
+	PX4_INFO("Heave: %4.2f", (double)_displacement_output[FFT_SIZE - 1]);
 
-
-			// Print ONLY the essential data for debugging
-			PX4_INFO("Wave Match: Amp %8.4f", (double)amplitude);
-
-
-			// compute phase
-			//float phase = atan2f(imag, real);
-
-
-    			}
-		}
     }
+}
 
-
-
-
-
-
+}
                 perf_end(_loop_perf);
         //}
 }
