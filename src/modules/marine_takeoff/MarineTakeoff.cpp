@@ -112,29 +112,29 @@ void MarineTakeoff::Run()
 
 
 	// If armed but not yet taken off
-	if (_armed && !_takeoff_sent) {
+	//if (_armed && !_takeoff_sent) {
+	//
+	//	vehicle_command_s mode_cmd{};
+	//	mode_cmd.timestamp = hrt_absolute_time();
+	//	mode_cmd.command = vehicle_command_s::VEHICLE_CMD_DO_SET_MODE;
 
-		vehicle_command_s mode_cmd{};
-		mode_cmd.timestamp = hrt_absolute_time();
-		mode_cmd.command = vehicle_command_s::VEHICLE_CMD_DO_SET_MODE;
+	//	mode_cmd.param1 = 1; // custom mode enabled
+	//	mode_cmd.param2 = 4;
+	//	mode_cmd.param3 = 2; // AUTO_TAKEOFF  Mode  for takeoff
 
-		mode_cmd.param1 = 1; // custom mode enabled
-		mode_cmd.param2 = 4;
-		mode_cmd.param3 = 2; // AUTO_TAKEOFF  Mode  for takeoff
+	//	mode_cmd.target_system = 1;
+	//	mode_cmd.target_component = 1;
+	//	mode_cmd.source_system = 1;
+	//	mode_cmd.source_component = 1;
+	//	mode_cmd.from_external = false;
 
-		mode_cmd.target_system = 1;
-		mode_cmd.target_component = 1;
-		mode_cmd.source_system = 1;
-		mode_cmd.source_component = 1;
-		mode_cmd.from_external = false;
+   	//	_vehicle_command_pub.publish(mode_cmd);
 
-   		_vehicle_command_pub.publish(mode_cmd);
+	//	PX4_INFO("Sent AUTO_TAKEOFF mode command");
 
-		PX4_INFO("Sent AUTO_TAKEOFF mode command");
+	//	_takeoff_sent = true;
 
-		_takeoff_sent = true;
-
-	}
+	//}
 
 
 
@@ -170,41 +170,77 @@ void MarineTakeoff::Run()
         _marine_sync_pub.publish(_sync_msg);
 
 
-        // 2. Creazione del Quaternione (usa i dati dell'attitude sincronizzata)
+        // 2. create quaternion use synchronized data
 	Quatf q(_last_attitude.q);
 
-	// 3. Vettore accelerazione dal messaggio sincronizzato
+	// 3. create accelleration vector
 	Vector3f acc_body(_sync_msg.accel[0], _sync_msg.accel[1], _sync_msg.accel[2]);
 
-	// 4. Rotazione nel World Frame
-	// In Matrix, q.rotateVector(v) ruota il vettore dal Body al World frame
+	// 4. Rotation from Body Frame to   World Frame
+
 	Vector3f acc_world = q.rotateVector(acc_body);
 
-	// 5. Compensazione Gravità
-	// PX4 usa lo standard NED (North-East-Down).
-	// Se il drone è fermo, acc_world(2) (Z-down) è circa -9.8 m/s^2.
-	// Sommiamo 9.80665f per centrare il segnale sullo zero.
+	// 5. Gravity Compensation
+	// PX4 follows the NED (North-East-Down) standard.
+	// When at rest, the world-frame Z-acceleration (Down) is approximately -9.80665 m/s².
+	// We add +9.80665f to center the signal at zero.
+	// Note: In this centered signal, POSITIVE values indicate downward acceleration,
+	// and NEGATIVE values indicate upward acceleration.
 	float acc_z_pure = acc_world(2) + 9.80665f;
 
-	// 6. Riempimento Buffer FFT
+	// 6. Fill  Buffer FFT
 
 	const float* src_list[] = { &acc_z_pure };
 	float* dst_list[] = { _buf_az };
 
-	// Ora passiamo gli array alla funzione. '1' indica che stiamo passando un solo segnale.
+	// Now let’s pass the arrays to the function. “1” indicates that we are passing a single signal
 	bool full = zoh_utils::ZOHProcessor::bufferDataMulti(src_list, dst_list, 1, _fft_idx, FFT_SIZE);
 
 
-        if (full) {
-                // MAGIC: Perform FFT on Z Acceleration
-                kiss_fftr(_fft_cfg, _buf_az, _fft_out);
+         if (full) {
 
-                // Print the result (DC component = average of the signal)
-                float dc_offset = _fft_out[0].r / FFT_SIZE;
-                PX4_INFO("FFT DONE! Avg Accel Z: %.3f", (double)dc_offset);
+		// 1. Calculate Mean using the actual buffer size variable
+		float sum = 0.0f;
+		for (size_t i= 0; i < FFT_SIZE; i++) {
+			sum += _buf_az[i];
+		}
+		float mean = sum / (float)FFT_SIZE;
 
-                _fft_idx = 0; // Reset
-        }
+		// 2. Center the data
+		// This removes ANY bias (gravity, sensor offset, tilt)
+		// regardless of the value.
+		for (size_t i = 0; i < FFT_SIZE; i++) {
+			_buf_az[i] -= mean;
+		}
+
+		// Do  FFT
+		// _buf_az: array of float (input)
+		// _fft_out: array of kiss_fft_cpx (output)
+		kiss_fftr(_fft_cfg, _buf_az, _fft_out);
+
+		// useful  bin number
+		int num_bins = FFT_SIZE / 2;
+
+		for (int k = 0; k <= num_bins; k++) {
+
+			float real = _fft_out[k].r;
+			float imag = _fft_out[k].i;
+
+			// compute amplitude
+			float amplitude = sqrtf(real*real + imag*imag);
+			if (amplitude > 2.0f) {
+
+
+			// Print ONLY the essential data for debugging
+			PX4_INFO("Wave Match: Amp %8.4f", (double)amplitude);
+		}
+
+			// compute phase
+			//float phase = atan2f(imag, real);
+
+
+    			}
+		}
     }
 
 
