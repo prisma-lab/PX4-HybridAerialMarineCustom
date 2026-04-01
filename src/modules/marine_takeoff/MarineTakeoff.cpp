@@ -228,12 +228,12 @@ void MarineTakeoff::Run()
 
 			// compute amplitude
 			float amplitude = sqrtf(real*real + imag*imag);
-			if (amplitude > 2.0f) {
+
 
 
 			// Print ONLY the essential data for debugging
 			PX4_INFO("Wave Match: Amp %8.4f", (double)amplitude);
-		}
+
 
 			// compute phase
 			//float phase = atan2f(imag, real);
