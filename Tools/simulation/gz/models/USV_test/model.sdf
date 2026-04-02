@@ -176,7 +176,7 @@
         <geometry>
           <mesh>
             <scale>0.5 0.5 1.8</scale>
-            <uri>model://USV_test/meshes/5010Base.dae</uri> 
+            <uri>model://USV_test/meshes/5010Base.dae</uri>
           </mesh>
         </geometry>
       </visual>
@@ -185,7 +185,7 @@
         <geometry>
           <mesh>
             <scale>0.5 0.5 1.8</scale>
-            <uri>model://USV_test/meshes/5010Base.dae</uri> 
+            <uri>model://USV_test/meshes/5010Base.dae</uri>
           </mesh>
         </geometry>
       </visual>
@@ -206,7 +206,7 @@
         <update_rate>250</update_rate>
       </sensor>
     </link>
-    
+
     <!-- Galleggianti -->
     <link name='left_floater'>
       <pose>0 0.3 0 0 1.57 0</pose>
@@ -282,7 +282,7 @@
         </material>
       </visual>
     </link>
-    
+
     <!-- Giunti per collegare i galleggianti e base link -->
     <joint name='left_joint' type='fixed'>
       <parent>base_link</parent>
@@ -292,7 +292,7 @@
       <parent>base_link</parent>
       <child>right_floater</child>
     </joint>
-    
+
     <!--Thruster marini-->
     <!-- <link name="fixed_rudder_left">
       <pose>-0.5 0.3 -0.06 0 0 0</pose>
@@ -310,14 +310,14 @@
           </box>
         </geometry>
       </collision>
-    </link> 
+    </link>
     <link name='left_th_base'>
       <pose>-0.5 0.3 -0.05 0 -1.57 0</pose>
       <visual name='visual_base_lf'>
         <geometry>
           <mesh>
             <scale>0.5 0.5 1.8</scale>
-            <uri>model://USV_test/meshes/5010Base.dae</uri> 
+            <uri>model://USV_test/meshes/5010Base.dae</uri>
           </mesh>
         </geometry>
       </visual>
@@ -340,7 +340,7 @@
         <geometry>
           <mesh>
             <scale>0.35 0.2 0.3</scale>
-            <uri>model://USV_test/meshes/propeller.dae</uri> 
+            <uri>model://USV_test/meshes/propeller.dae</uri>
           </mesh>
         </geometry>
       </visual>
@@ -358,7 +358,7 @@
     <!-- <joint name='left_rudder_joint' type='fixed'>
       <parent>left_floater</parent>
       <child>fixed_rudder_left</child>
-    </joint> 
+    </joint>
     <joint name='lefth_th_base_to_ridderr' type='fixed'>
       <parent>left_floater</parent>
       <child>left_th_base</child>
@@ -391,14 +391,14 @@
           </box>
         </geometry>
       </collision>
-    </link> 
+    </link>
     <link name='right_th_base'>
       <pose>-0.5 -0.3 -0.05 0 -1.57 0</pose>
       <visual name='visual_base_rh'>
         <geometry>
           <mesh>
             <scale>0.5 0.5 1.8</scale>
-            <uri>model://USV_test/meshes/5010Base.dae</uri> 
+            <uri>model://USV_test/meshes/5010Base.dae</uri>
           </mesh>
         </geometry>
       </visual>
@@ -421,7 +421,7 @@
         <geometry>
           <mesh>
             <scale>0.35 0.2 0.3</scale>
-            <uri>model://USV_test/meshes/propeller.dae</uri> 
+            <uri>model://USV_test/meshes/propeller.dae</uri>
           </mesh>
         </geometry>
       </visual>
@@ -439,7 +439,7 @@
     <!-- <joint name='right_rudder_joint' type='fixed'>
       <parent>right_floater</parent>
       <child>fixed_rudder_right</child>
-    </joint> 
+    </joint>
     <joint name='right_th_base_to_rudderr' type='fixed'>
       <parent>right_floater</parent>
       <child>right_th_base</child>
@@ -466,7 +466,7 @@
       <velocity_control>false</velocity_control>
       <max_thrust_cmd>2300</max_thrust_cmd>
       <namespace>model</namespace>
-      <topic>USV_test_0/servo_0</topic> 
+      <topic>USV_test_0/servo_0</topic>
     </plugin>
     <plugin
       filename="gz-sim-thruster-system"
@@ -478,7 +478,7 @@
       <velocity_control>false</velocity_control>
       <max_thrust_cmd>2300</max_thrust_cmd>
       <namespace>model</namespace>
-      <topic>USV_test_0/servo_1</topic> 
+      <topic>USV_test_0/servo_1</topic>
     </plugin>
 
     <!--Propeller-->
@@ -667,7 +667,7 @@
         </inertia>
       </inertial>
       <visual name="rotor_3_visual">
-        <geometry> 
+        <geometry>
           <mesh>
             <scale>0.6 0.6 0.6</scale>
             <uri>model://USV_test/meshes/propeller.dae</uri>
@@ -709,7 +709,7 @@
         </dynamics>
       </axis>
     </joint>
-    
+
     <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
       <jointName>rotor_0_joint</jointName>
       <linkName>rotor_0</linkName>
@@ -773,6 +773,22 @@
       <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
       <motorType>velocity</motorType>
+    </plugin>
+<!--MODS: adding buoyant point from which real wave height will be extracted-->
+    <plugin filename="libCentralSurfacePlace.so" name="vrx::CentralSurfacePlace">
+      <link_name>base_link</link_name>
+      <hull_height>0.6</hull_height>
+      <hull_radius>0.075</hull_radius>
+      <fluid_level>0.0</fluid_level>
+      <fluid_density>997</fluid_density>
+      <points>
+        <point>0 0 0</point>
+      </points>
+      <wavefield>
+        <size>6000 6000</size>
+     		<cell_count>500 500</cell_count>
+        <topic>/vrx/wavefield/parameters</topic>
+      </wavefield>
     </plugin>
 
     <!--Plugin galleggiamento-->
@@ -843,7 +859,7 @@
         <zW>500.0</zW>
         <kP>300.0</kP>
         <kPP>600.0</kPP>
-        <mQ>600.0</mQ> 
+        <mQ>600.0</mQ>
         <mQQ>900.0</mQQ>
         <nR>800.0</nR>
         <nRR>800.0</nRR> -->
@@ -854,7 +870,7 @@
         <zW>0.5</zW>
         <kP>2</kP>
         <kPP>2</kPP>
-        <mQ>2</mQ> 
+        <mQ>2</mQ>
         <mQQ>2</mQQ>
         <nR>2</nR>
         <nRR>2</nRR>

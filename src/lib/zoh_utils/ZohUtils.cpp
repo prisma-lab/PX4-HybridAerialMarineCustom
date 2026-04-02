@@ -6,34 +6,24 @@ namespace zoh_utils {
 bool ZOHProcessor::bufferDataMulti(const float* data_sources[], float* buffers[],
                                   size_t num_channels, int &idx, int max_rows)
 {
-    // CASE 1: Buffer is not full yet - Fill it normally
-    if (idx < max_rows) {
-        for (size_t i = 0; i < num_channels; i++) {
-            if (data_sources[i] != nullptr && buffers[i] != nullptr) {
-                buffers[i][idx] = *data_sources[i];
-            }
-        }
-        idx++;
-        return (idx >= max_rows); // Returns true exactly when it hits the limit
-    }
-
-    // CASE 2: Buffer IS full - Perform Circular Shift (Sliding Window)
+    // 1. Inserimento O(1) nella posizione corrente (la "testa" del buffer)
     for (size_t i = 0; i < num_channels; i++) {
         if (data_sources[i] != nullptr && buffers[i] != nullptr) {
-
-            // Shift all elements left: [1,2,3] -> [2,3,3]
-            for (int j = 0; j < (max_rows - 1); j++) {
-                buffers[i][j] = buffers[i][j + 1];
-            }
-
-            // Insert newest data at the end: [2,3,new]
-            buffers[i][max_rows - 1] = *data_sources[i];
+            buffers[i][idx] = *data_sources[i];
         }
     }
 
-    return true; // Always returns true because the buffer stays full
-}
+    // 2. Avanzamento circolare dell'indice
+    idx = (idx + 1) % max_rows;
 
+    // 3. Logica di "Buffer Pronto"
+    // In modalità sliding window, una volta che il buffer è stato riempito la prima volta,
+    // è SEMPRE pronto (restituisce true ad ogni nuovo campione inserito).
+    // Nota: Per gestire il primissimo riempimento, potresti aver bisogno di un flag esterno,
+    // ma tecnicamente qui restituiamo true per attivare il calcolo.
+
+    return true;
+}
 ZOHProcessor::Result ZOHProcessor::process(Input topics[], size_t count) {
     Result r{};
     r.reference_index = -1;

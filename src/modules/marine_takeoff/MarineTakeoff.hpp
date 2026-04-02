@@ -1,5 +1,6 @@
 #pragma once
 // CUSTOM MODE
+#include <algorithm>
 #include <px4_platform_common/defines.h>
 #include <px4_platform_common/module.h>
 #include <px4_platform_common/module_params.h>
@@ -118,36 +119,29 @@ private:
         marine_sync_s _sync_msg{};
 
 
-	static constexpr size_t FFT_SIZE = 256;
+       static constexpr size_t FFT_SIZE = 256;
+    static constexpr int fft_cut = 30;
 
-	// 4 (Attitude)
-	float _buf_q0[FFT_SIZE];
-	float _buf_q1[FFT_SIZE];
-	float _buf_q2[FFT_SIZE];
-	float _buf_q3[FFT_SIZE];
+    // Buffer per il campionamento (ZOH Fill)
+    float _buf_az[FFT_SIZE]{};
+    int _fft_idx{0};
 
-	// 3  Acceleration (Movement)
-	float _buf_ax[FFT_SIZE];
-	float _buf_ay[FFT_SIZE];
-	float _buf_az[FFT_SIZE];
+    // Configurazione KissFFT
+    kiss_fftr_cfg _fft_cfg{nullptr};      // Forward
+    kiss_fftr_cfg _fft_inv_cfg{nullptr};     // Inverse
 
+    // Buffer FFT (N/2 + 1 bin complessi per FFT reale)
+    kiss_fft_cpx _fft_out[FFT_SIZE / 2 + 1]{};
 
+    // Window table pre-calcolata
+    float _window[FFT_SIZE]{};
+    float _displacement_output[FFT_SIZE]{};
 
-
-	kiss_fftr_cfg _fft_cfg{nullptr};      // Forward FFT config
-	kiss_fftr_cfg _fft_inv_cfg{nullptr};  // Inverse FFT config
-
-	// FFT Buffers
-
-	               // Input: Vertical Acceleration
-	kiss_fft_cpx _fft_out[FFT_SIZE / 2 + 1]{}; // Output: Frequency Bins
-	kiss_fft_cpx _fft_integrated[FFT_SIZE / 2 + 1]{}; // Processed Bins
-	float _displacement_output[FFT_SIZE]{};    // Final Heave (m)
-
-	int _fft_idx{0};
-	float _actual_fs{250.0f}; // Default sampling freq
-	int _skip_count{0}; // Add this to your private variables
-
+    struct Bin {
+        int index;
+        float magnitude; // Usiamo il quadrato per risparmiare sqrtf() nel sort
+    };
+   int _decimation_count{0};
 	// Parameters
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::SYS_AUTOSTART>) _param_sys_autostart,

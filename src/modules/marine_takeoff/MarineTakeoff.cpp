@@ -1,5 +1,5 @@
 #include "MarineTakeoff.hpp"
-
+#include  <fstream>
 MarineTakeoff::MarineTakeoff() :
 	ModuleParams(nullptr),
 	ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default)
@@ -106,7 +106,24 @@ void MarineTakeoff::Run()
 		_vehicle_command_pub.publish(cmd);
 		PX4_INFO("Sent ARM command from MarineTakeoff module");
 	}
+	std::ofstream csv_file;
+// Usiamo "app" per aggiungere i dati di ogni FFT calcolata
+csv_file.open("heave_full_buffer.csv", std::ios_base::app);
 
+if (csv_file.is_open()) {
+    uint64_t now = hrt_absolute_time();
+
+    // Scriviamo l'intero buffer di spostamento su una singola riga
+    // Formato: timestamp,val1,val2,val3...
+    csv_file << now;
+
+    for (size_t i = 0; i < FFT_SIZE; i++) {
+        csv_file << "," << (double)_displacement_output[i];
+    }
+
+    csv_file << "\n";
+    csv_file.close();
+}
 
 
 
@@ -188,74 +205,124 @@ void MarineTakeoff::Run()
 	// and NEGATIVE values indicate upward acceleration.
 	float acc_z_pure = acc_world(2) + 9.80665f;
 
-	// --- STEP 1: DECIMATION (Slow down from 250Hz to 25Hz) ---
-//_skip_count++;
-//if (_skip_count >= 10) {
- //   _skip_count = 0;
+
 
     const float* src_list[] = { &acc_z_pure };
     float* dst_list[] = { _buf_az };
+     // decimazione
+     _decimation_count++;
 
-    // This calls your updated circular logic:
-    // It fills until max_rows, then starts shifting left.
-    bool buffer_ready = zoh_utils::ZOHProcessor::bufferDataMulti(src_list, dst_list, 1, _fft_idx, FFT_SIZE);
+    if (_decimation_count >= 10) {
+        _decimation_count = 0;
 
-    if (buffer_ready) {
-        // --- STEP 2: COPY TO WORK BUFFER ---
-        // CRITICAL: We copy _buf_az to work_buf so we don't ruin the
-        // raw history with Mean Removal and Windowing.
-        float work_buf[FFT_SIZE];
-        float sum = 0.0f;
+        // Inserimento circolare: idx avanza 0->255->0 senza mai resettarsi esternamente
+        _zoh_processor.bufferDataMulti(src_list, dst_list, 1, _fft_idx, FFT_SIZE);
 
-        for (size_t i = 0; i < FFT_SIZE; i++) {
-            work_buf[i] = _buf_az[i];
-            sum += work_buf[i];
-        }
+        // 2. Trigger di calcolo: eseguiamo la FFT ogni 5 nuovi campioni (5 Hz di aggiornamento)
+        static int calc_trigger = 0;
+        if (++calc_trigger >= 5) {
+            calc_trigger = 0;
 
-        // --- STEP 3: PRE-PROCESSING ---
-        float mean = sum / (float)FFT_SIZE;
-        for (size_t i = 0; i < FFT_SIZE; i++) {
-            work_buf[i] -= mean;
-            // Hanning Window to fix the spectral leakage (the 4.63m error)
-            float window = 0.5f * (1.0f - cosf(2.0f * (float)M_PI * (float)i / (float)(FFT_SIZE - 1)));
-            work_buf[i] *= window;
-        }
+            // --- STEP: SROTOLAMENTO ---
+            // Creiamo un segnale lineare partendo dal punto corrente del buffer circolare
+            static float work_buf[FFT_SIZE];
+            float sum = 0.0f;
 
-        // --- STEP 4: FORWARD FFT ---
-        float effective_fs = _actual_fs; // 10.0f; // 25.0 Hz
-        float df = effective_fs / (float)FFT_SIZE;
-        kiss_fftr(_fft_cfg, work_buf, _fft_out);
-
-        // --- STEP 5: FREQUENCY DOMAIN INTEGRATION ---
-        // Clean the integration buffer first
-        for (size_t i = 0; i <= (FFT_SIZE / 2); i++) {
-            _fft_integrated[i].r = 0.0f;
-            _fft_integrated[i].i = 0.0f;
-        }
-
-        for (size_t bin_idx = 1; bin_idx <= (FFT_SIZE / 2); bin_idx++) {
-            float freq = bin_idx * df;
-
-            // General Guard: 0.05Hz to 1.5Hz covers most ocean swells
-            if (freq > 0.05f && freq < 2.0f) {
-                float omega = 2.0f * (float)M_PI * freq;
-                float scale = -1.0f / (omega * omega); // Double integration (Accel -> Disp)
-
-                _fft_integrated[bin_idx].r = _fft_out[bin_idx].r * scale;
-                _fft_integrated[bin_idx].i = _fft_out[bin_idx].i * scale;
+            for (size_t i = 0; i < FFT_SIZE; i++) {
+                size_t circular_idx = (_fft_idx + i) % FFT_SIZE;
+                work_buf[i] = _buf_az[circular_idx];
+                sum += work_buf[i];
             }
+
+            // --- STEP: PRE-PROCESSING ---
+            float mean = sum / (float)FFT_SIZE;
+
+            for (size_t i = 0; i < FFT_SIZE; i++) {
+                work_buf[i] -= mean;
+                // Windowing (Hanning)
+                float window = 0.5f * (1.0f - cosf(2.0f * (float)M_PI * i / (FFT_SIZE - 1)));
+              work_buf[i] *= window;
+            }
+
+            // --- STEP: FFT ---
+            kiss_fftr(_fft_cfg, work_buf, _fft_out);
+
+            const int num_bins = FFT_SIZE / 2 + 1;
+            const float two_pi = 2.0f * (float)M_PI;
+            const float df = 25.0f / (float)FFT_SIZE;
+
+            // --- STEP: ANALISI PICCHI ---
+            Bin bins[num_bins];
+            for (int k = 0; k < num_bins; k++) {
+                bins[k].index = k;
+                bins[k].magnitude = sqrtf(_fft_out[k].r * _fft_out[k].r + _fft_out[k].i * _fft_out[k].i);
+            }
+
+            std::nth_element(bins + 1, bins + 1 + fft_cut, bins + num_bins,
+                [](const Bin& a, const Bin& b) { return a.magnitude > b.magnitude; });
+
+            bool is_peak[num_bins] = { false };
+            for (int i = 1; i <= fft_cut; i++) {
+                is_peak[bins[i].index] = true;
+            }
+
+            // --- STEP: DOPPIA INTEGRAZIONE ---
+            _fft_out[0].r = 0.0f; // DC a zero per evitare drift
+            _fft_out[0].i = 0.0f;
+
+            for (int k = 1; k < num_bins; k++) {
+                if (is_peak[k]) {
+                    float freq = k * df;
+                    float omega = two_pi * freq;
+                    float factor = 1.0f / -(omega * omega);
+                    _fft_out[k].r *= factor;
+                    _fft_out[k].i *= factor;
+                } else {
+                    _fft_out[k].r = 0.0f;
+                    _fft_out[k].i = 0.0f;
+                }
+            }
+
+
+
+
+            // --- STEP: OUTPUT REAL-TIME ---
+	    // --- STEP: IFFT E NORMALIZZAZIONE ---
+	kiss_fftri(_fft_inv_cfg, _fft_out, _displacement_output);
+
+	// Normalizzazione IFFT (1/N) * Compensazione Hanning (2.0)
+	const float total_norm = 0.5f / (float)FFT_SIZE;
+	for (size_t i = 0; i < FFT_SIZE; i++) {
+	_displacement_output[i] *= total_norm;
+	}
+
+		std::ofstream heave_csv;
+                // Apre il file in append. In SITL lo trovi nella root del firmware.
+                heave_csv.open("heave_comparison_data1.csv", std::ios_base::app);
+
+                if (heave_csv.is_open()) {
+                    // Scriviamo il timestamp attuale
+                    heave_csv << hrt_absolute_time();
+
+                    // Scriviamo tutto il buffer dello spostamento (FFT_SIZE valori)
+                    for (size_t i = 0; i < FFT_SIZE; i++) {
+                        heave_csv << "," << (double)_displacement_output[i];
+                    }
+
+                    heave_csv << "\n";
+                    heave_csv.close();
+                }
+
+            // L'ultimo campione è il "presente"
+            float current_heave = _displacement_output[FFT_SIZE - 1];
+            PX4_INFO("Heave: %.4f m", (double)current_heave);
         }
-
-        // --- STEP 6: INVERSE FFT (Back to Time Domain) ---
-        kiss_fftri(_fft_inv_cfg, _fft_integrated, _displacement_output);
-	// This multiplier is key to matching your 2.3m simulation
-
-	static int print_counter = 0;
-	if (print_counter++ >= 100) { // Print every 40ms instead of every 4ms
-	PX4_INFO("Heave: %4.2f", (double)_displacement_output[FFT_SIZE - 1]);
-
     }
-}
+
+
+
+
+
 
 }
                 perf_end(_loop_perf);
