@@ -119,7 +119,7 @@ private:
         marine_sync_s _sync_msg{};
 
 
-       static constexpr size_t FFT_SIZE = 256;
+       static constexpr size_t FFT_SIZE = 2500; //2048
     static constexpr int fft_cut = 30;
 
     // Buffer per il campionamento (ZOH Fill)

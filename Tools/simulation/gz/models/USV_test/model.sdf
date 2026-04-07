@@ -777,12 +777,12 @@
 <!--MODS: adding buoyant point from which real wave height will be extracted-->
     <plugin filename="libCentralSurfacePlace.so" name="vrx::CentralSurfacePlace">
       <link_name>base_link</link_name>
-      <hull_height>0.6</hull_height>
+      <hull_height>0.45</hull_height>
       <hull_radius>0.075</hull_radius>
       <fluid_level>0.0</fluid_level>
       <fluid_density>997</fluid_density>
       <points>
-        <point>0 0 0</point>
+        <point>0 0 -0.24</point>
       </points>
       <wavefield>
         <size>6000 6000</size>
