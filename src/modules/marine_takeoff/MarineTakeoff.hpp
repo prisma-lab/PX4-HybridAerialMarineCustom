@@ -32,6 +32,7 @@
 #include <uORB/topics/vehicle_imu_status.h>
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/marine_sync.h>
+#include <uORB/topics/marine_wave.h>
 
 
 #include <lib/matrix/matrix/math.hpp> // Se usi le librerie Matrix di PX4
@@ -141,7 +142,13 @@ private:
         int index;
         float magnitude; // Usiamo il quadrato per risparmiare sqrtf() nel sort
     };
-   int _decimation_count{0};
+
+    // Sottoscrizione al messaggio da ROS2
+	uORB::Subscription _marine_wave_sub{ORB_ID(marine_wave)};
+
+	// Definizione della struttura per contenere i dati
+	marine_wave_s _last_wave{};
+
 	// Parameters
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::SYS_AUTOSTART>) _param_sys_autostart,

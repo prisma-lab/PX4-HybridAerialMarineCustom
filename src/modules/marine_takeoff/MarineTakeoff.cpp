@@ -144,7 +144,7 @@ void MarineTakeoff::Run()
 
         const bool attitude_updated = _vehicle_attitude_sub.updated();
     const bool imu_status_updated = _vehicle_imu_status_sub.updated();
-
+    const bool wave_update =_marine_wave_sub.updated();
     if (attitude_updated) {
         _vehicle_attitude_sub.copy(&_last_attitude);
     }
@@ -152,6 +152,10 @@ void MarineTakeoff::Run()
     if (imu_status_updated) {
         _vehicle_imu_status_sub.copy(&_last_imu_status);
     }
+
+   if (wave_update) {
+	_marine_wave_sub.copy(&_last_wave);
+	}
 
        // ======================================================
     // ZOH + Sampling at fastest topic update
@@ -196,6 +200,8 @@ static bool finished = false;
 static int total_samples = 0;
 static float raw_acc_z_buffer[FFT_SIZE];
 static float final_raw_acc[FFT_SIZE];
+static float raw_wave[FFT_SIZE];
+static float final_wave_gt[FFT_SIZE];
 
 if (!finished) {
     if (total_samples == 0) {
@@ -208,6 +214,8 @@ if (!finished) {
     }
     // 1. Salva il dato grezzo prima dell'incremento dell'indice
     raw_acc_z_buffer[_fft_idx] = acc_z_pure;
+    raw_wave[_fft_idx] = _last_wave.wave_amplitude;
+
 
     // 2. Preparazione liste per ZOH (Dichiarate UNA SOLA VOLTA)
     const float* src_list[] = { &acc_z_pure };
@@ -240,7 +248,8 @@ if (!finished) {
         for (size_t i = 0; i < FFT_SIZE; i++) {
             size_t circular_idx = (_fft_idx + i) % FFT_SIZE;
             work_buf[i] = _buf_az[circular_idx];
-            final_raw_acc[i] = raw_acc_z_buffer[circular_idx];
+	    final_raw_acc[i] = raw_acc_z_buffer[circular_idx];
+	    final_wave_gt[i] = raw_wave[circular_idx];
             sum += work_buf[i];
         }
 
@@ -303,13 +312,14 @@ std::ofstream csv_file(csv_path);
 
 if (csv_file.is_open()) {
     // Intestazione
-    csv_file << "sample_idx,acc_raw_z,displacement_z\n";
+    csv_file << "sample_idx,acc_raw_z,displacement_z,wave_gt\n";
 
     for (size_t i = 0; i < FFT_SIZE; i++) {
         // Scriviamo l'indice, l'accelerazione originale srotolata e lo spostamento calcolato
         csv_file << i << ","
                  << (double)final_raw_acc[i] << ","
-                 << (double)_displacement_output[i] << "\n";
+                 << (double)_displacement_output[i] << ","
+		 << (double)final_wave_gt[i] << "\n"; // La verità di ROS2
     }
 
     csv_file.close();
