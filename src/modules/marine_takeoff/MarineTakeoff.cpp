@@ -259,10 +259,7 @@ if (!finished) {
 
     ///   fino a questo punto non ho alcun errore da qui in poi devo ancora testare
 
-
-
-
-  // --- STEP 1: Inizializzazione parametri ---
+// --- STEP 1: Inizializzazione parametri ---
 _fft_out[0].r = 0.0f; // Rimuovi DC
 _fft_out[0].i = 0.0f;
 
@@ -295,25 +292,19 @@ for (int k = 1; k < num_bins; k++) {
     }
 }
 
-
-
-
-// --- STEP: IFFT E RICOSTRUZIONE TEMPORALE ---
-
-// Eseguiamo la trasformata inversa (Complex-to-Real)
+// --- STEP 3: Trasformata Inversa ---
 kiss_fftri(_fft_inv_cfg, _fft_out, _displacement_output);
 
-// Normalizzazione finale
-// La IFFT di KissFFT non è scalata. Dobbiamo dividere per N (FFT_SIZE).
-// Se avessi usato una finestra di Hanning, qui dovresti moltiplicare anche per 2.0.
-const float norm_factor = 1.0f / (float)FFT_SIZE;
+// --- STEP 4: Normalizzazione e Segno ---
+// Moltiplichiamo per -1.0f se vuoi invertire la fase (come nel tuo codice)
+// Dividiamo per FFT_SIZE perché KissFFT non è normalizzata
+const float norm_factor = -1.0f / (float)FFT_SIZE;
 
 for (size_t i = 0; i < FFT_SIZE; i++) {
-    _displacement_output[i] *= (norm_factor *-1.0f);
-
+    _displacement_output[i] *= norm_factor;
 }
 
-const char *csv_path = PX4_STORAGEDIR "/fft_displacement_data71.csv";
+const char *csv_path = PX4_STORAGEDIR "/fft_displacement_data44.csv";
 std::ofstream csv_file(csv_path);
 
 if (csv_file.is_open()) {

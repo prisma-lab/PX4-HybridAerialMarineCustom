@@ -149,6 +149,17 @@ private:
 	// Definizione della struttura per contenere i dati
 	marine_wave_s _last_wave{};
 
+	static constexpr int FFT_CUT = 30;
+
+struct BinMagnitude {
+    int index;
+    float mag_sq;
+};
+
+// Memoria pre-allocata per evitare lo stack overflow
+BinMagnitude _mag_list[FFT_SIZE / 2];
+bool _is_peak[FFT_SIZE / 2 + 1];
+
 	// Parameters
 	DEFINE_PARAMETERS(
 		(ParamInt<px4::params::SYS_AUTOSTART>) _param_sys_autostart,
