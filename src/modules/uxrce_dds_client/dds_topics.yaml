@@ -65,6 +65,9 @@ publications:
   - topic: /fmu/out/vehicle_command_ack
     type: px4_msgs::msg::VehicleCommandAck
 
+  - topic: /fmu/out/vehicle_command
+    type: px4_msgs::msg::VehicleCommand
+
   - topic: /fmu/out/vehicle_global_position
     type: px4_msgs::msg::VehicleGlobalPosition
 
@@ -91,6 +94,9 @@ publications:
 subscriptions:
   - topic: /fmu/in/register_ext_component_request
     type: px4_msgs::msg::RegisterExtComponentRequest
+
+  - topic: /fmu/in/marine_wave
+    type: px4_msgs::msg::MarineWave
 
   - topic: /fmu/in/unregister_ext_component
     type: px4_msgs::msg::UnregisterExtComponent
