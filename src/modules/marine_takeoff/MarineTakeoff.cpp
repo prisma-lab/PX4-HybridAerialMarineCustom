@@ -227,7 +227,7 @@ if (!finished) {
     total_samples++;
 
     // 3. Quando arriviamo a 10 secondi (2500 campioni)
-    if (total_samples >= 5000) {
+    if (total_samples >= 7500) {
 
 
         finished = true;
@@ -262,35 +262,41 @@ if (!finished) {
 
 
 
-
-     // 1. Reset delle componenti DC (Frequenza 0Hz)
-_fft_out[0].r = 0.0f;
+  // --- STEP 1: Inizializzazione parametri ---
+_fft_out[0].r = 0.0f; // Rimuovi DC
 _fft_out[0].i = 0.0f;
 
 int num_bins = (FFT_SIZE / 2) + 1;
-bool is_peak[num_bins];
-// Definizioni per il calcolo delle frequenze
-const float Fs = 250.0f; // Frequenza di campionamento (es. 250Hz per 2500 campioni in 10s)
+const float Fs = 250.0f;
 const float df = Fs / (float)FFT_SIZE;
 const float two_pi = 2.0f * M_PI_F;
 
+// --- STEP 2: Ciclo di integrazione ---
 for (int k = 1; k < num_bins; k++) {
-    // Calcolo del modulo per la condizione is_peak (emula abs(X) di MATLAB)
-    // Se is_peak[k] è già calcolato esternamente, questa parte valida la logica
+    float freq = k * df;
 
-    if (is_peak[k]) {
-        float freq = k * df;
+    // DEFINIAMO IS_PEAK:
+    // Invece di un array casuale, integriamo solo il range utile (es. 0.05Hz - 2Hz)
+    // Questo è il range tipico delle onde marine.
+    bool is_peak_logic = (freq >= 0.05f && freq <= 2.0f);
+
+    if (is_peak_logic) {
         float omega = two_pi * freq;
-
-        // La doppia integrazione: divisione per -(omega^2)
-        // Usiamo un segno negativo per mantenere la coerenza fisica (inversione di fase)
+        // Doppia integrazione: 1 / -(omega^2)
         float factor = 1.0f / -(omega * omega);
 
         _fft_out[k].r *= factor;
         _fft_out[k].i *= factor;
 
+    } else {
+        // EQUIVALENZA MATLAB: Tutto ciò che non ci interessa va a zero
+        _fft_out[k].r = 0.0f;
+        _fft_out[k].i = 0.0f;
     }
 }
+
+
+
 
 // --- STEP: IFFT E RICOSTRUZIONE TEMPORALE ---
 
@@ -303,11 +309,11 @@ kiss_fftri(_fft_inv_cfg, _fft_out, _displacement_output);
 const float norm_factor = 1.0f / (float)FFT_SIZE;
 
 for (size_t i = 0; i < FFT_SIZE; i++) {
-    _displacement_output[i] *= (norm_factor * -1.0f);
+    _displacement_output[i] *= (norm_factor *-1.0f);
 
 }
 
-const char *csv_path = PX4_STORAGEDIR "/fft_displacement_data.csv";
+const char *csv_path = PX4_STORAGEDIR "/fft_displacement_data71.csv";
 std::ofstream csv_file(csv_path);
 
 if (csv_file.is_open()) {
