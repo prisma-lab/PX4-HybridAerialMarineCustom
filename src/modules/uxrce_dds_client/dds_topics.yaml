@@ -90,6 +90,10 @@ publications:
   - topic: /fmu/out/marine_sync
     type: px4_msgs::msg::MarineSync
 
+  - topic: /fmu/out/marine_wave_result
+    type: px4_msgs::msg::MarineWaveResult
+
+
 # Create uORB::Publication
 subscriptions:
   - topic: /fmu/in/register_ext_component_request

@@ -33,6 +33,7 @@
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/marine_sync.h>
 #include <uORB/topics/marine_wave.h>
+#include <uORB/topics/marine_wave_result.h>
 
 
 #include <lib/matrix/matrix/math.hpp> // Se usi le librerie Matrix di PX4
@@ -120,7 +121,7 @@ private:
         marine_sync_s _sync_msg{};
 
 
-       static constexpr size_t FFT_SIZE = 7500; //2048
+       static constexpr size_t FFT_SIZE = 5000; //2048
     static constexpr int fft_cut = 30;
 
     // Buffer per il campionamento (ZOH Fill)
@@ -149,7 +150,11 @@ private:
 	// Definizione della struttura per contenere i dati
 	marine_wave_s _last_wave{};
 
-	static constexpr int FFT_CUT = 30;
+	uORB::Publication<marine_wave_result_s> _marine_wave_result_pub{ORB_ID(marine_wave_result)};
+
+    // Strutture dati
+
+    marine_wave_result_s _log_msg{};
 
 struct BinMagnitude {
     int index;

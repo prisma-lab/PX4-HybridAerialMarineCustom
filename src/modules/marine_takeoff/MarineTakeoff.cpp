@@ -196,14 +196,16 @@ void MarineTakeoff::Run()
 
 // --- VARIABILI DI STATO ---
 // Devono essere static per non essere resettate ad ogni Run()
-static bool finished = false;
 static int total_samples = 0;
+static int cycle_count = 0;
+const int MAX_CYCLES = 3;
+
 static float raw_acc_z_buffer[FFT_SIZE];
 static float final_raw_acc[FFT_SIZE];
 static float raw_wave[FFT_SIZE];
 static float final_wave_gt[FFT_SIZE];
 
-if (!finished) {
+if (cycle_count<MAX_CYCLES) {
     if (total_samples == 0) {
         vehicle_command_s start_msg{};
         start_msg.timestamp = hrt_absolute_time();
@@ -227,10 +229,10 @@ if (!finished) {
     total_samples++;
 
     // 3. Quando arriviamo a 10 secondi (2500 campioni)
-    if (total_samples >= 7500) {
+    if (total_samples >= 5000) {
 
 
-        finished = true;
+
         // Inviamo un comando che ROS2 può leggere
 
         vehicle_command_s save_msg{};
@@ -258,7 +260,8 @@ if (!finished) {
         kiss_fftr(_fft_cfg, work_buf, _fft_out);
 
     ///   fino a questo punto non ho alcun errore da qui in poi devo ancora testare
-
+float original_dc_r = _fft_out[0].r;
+float original_dc_i = _fft_out[0].i;
 // --- STEP 1: Inizializzazione parametri ---
 _fft_out[0].r = 0.0f; // Rimuovi DC
 _fft_out[0].i = 0.0f;
@@ -273,9 +276,9 @@ for (int k = 1; k < num_bins; k++) {
     float freq = k * df;
 
     // DEFINIAMO IS_PEAK:
-    // Invece di un array casuale, integriamo solo il range utile (es. 0.05Hz - 2Hz)
+    // Invece di un array casuale, integriamo solo il range utile (es. 0.05Hz - 5Hz)
     // Questo è il range tipico delle onde marine.
-    bool is_peak_logic = (freq >= 0.05f && freq <= 2.0f);
+    bool is_peak_logic = (freq >= 0.05f && freq <= 5.0f);
 
     if (is_peak_logic) {
         float omega = two_pi * freq;
@@ -291,39 +294,52 @@ for (int k = 1; k < num_bins; k++) {
         _fft_out[k].i = 0.0f;
     }
 }
-
+ _fft_out[0].r = original_dc_r;
+_fft_out[0].i = original_dc_i;
 // --- STEP 3: Trasformata Inversa ---
 kiss_fftri(_fft_inv_cfg, _fft_out, _displacement_output);
 
 // --- STEP 4: Normalizzazione e Segno ---
 // Moltiplichiamo per -1.0f se vuoi invertire la fase (come nel tuo codice)
-// Dividiamo per FFT_SIZE perché KissFFT non è normalizzata
+// Dividiamo per FFT_SIZE perché KissFFT non è normalizzata  nota che vrx is enu px4 ned so -1
 const float norm_factor = -1.0f / (float)FFT_SIZE;
 
 for (size_t i = 0; i < FFT_SIZE; i++) {
     _displacement_output[i] *= norm_factor;
 }
 
-const char *csv_path = PX4_STORAGEDIR "/fft_displacement_data44.csv";
-std::ofstream csv_file(csv_path);
+//PX4_INFO("FFT_RESULT: Cycle %d | Sample0: raw_acc=%f, disp=%f",
+  //        cycle_count, (double)final_raw_acc[0], (double)_displacement_output[0]);
+if (cycle_count < MAX_CYCLES) {
+        for (size_t i = 0; i < FFT_SIZE; i++) {
 
-if (csv_file.is_open()) {
-    // Intestazione
-    csv_file << "sample_idx,acc_raw_z,displacement_z,wave_gt\n";
 
-    for (size_t i = 0; i < FFT_SIZE; i++) {
-        // Scriviamo l'indice, l'accelerazione originale srotolata e lo spostamento calcolato
-        csv_file << i << ","
-                 << (double)final_raw_acc[i] << ","
-                 << (double)_displacement_output[i] << ","
-		 << (double)final_wave_gt[i] << "\n"; // La verità di ROS2
+            _log_msg = {};
+
+    // 2. Assegna i valori assicurandoti che siano float (32 bit)
+    _log_msg.timestamp = hrt_absolute_time();
+    _log_msg.wave_amplitude = (float)final_wave_gt[i];
+    _log_msg.acc_raw_z = (float)final_raw_acc[i];
+    _log_msg.displacement_z = (float)_displacement_output[i];
+    _log_msg.cycle_count = (uint32_t)cycle_count;
+    _log_msg.sample_idx = (uint32_t)i;
+
+    _marine_wave_result_pub.publish(_log_msg);
+    px4_usleep(500);
+
+        }
+        }
+        PX4_INFO("Dati ciclo %d inviati a ROS via DDS", cycle_count);
+
+    // 2. INCREMENTO E RESET (Dopo il salvataggio)
+    cycle_count++;
+    total_samples = 0;
+
+    // 3. LOGICA FINALE
+    if (cycle_count >= MAX_CYCLES) {
+        PX4_WARN("=== ANALISI COMPLETATA ===");
+        PX4_ERR("DECOLLO NON POSSIBILE: Limite cicli raggiunto.");
     }
-
-    csv_file.close();
-    PX4_INFO("Dati salvati con successo in: %s", csv_path);
-} else {
-    PX4_ERR("Impossibile aprire il file CSV per la scrittura!");
-}
 
     }
 }

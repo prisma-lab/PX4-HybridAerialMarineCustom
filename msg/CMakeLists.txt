@@ -238,6 +238,7 @@ set(msg_files
 	YawEstimatorStatus.msg
 	MarineSync.msg
 	MarineWave.msg
+	MarineWaveResult.msg
 )
 list(SORT msg_files)
 
