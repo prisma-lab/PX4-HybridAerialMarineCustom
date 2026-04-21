@@ -14,12 +14,13 @@
 #include <uORB/SubscriptionCallback.hpp>
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/vehicle_command.h>
+#include <uORB/topics/vehicle_control_mode.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_imu_status.h>
+#include <uORB/topics/parameter_update.h>
 #include <uORB/topics/marine_sync.h>
 #include <uORB/topics/marine_wave.h>
 #include <uORB/topics/marine_wave_result.h>
-#include <uORB/topics/marine_wave_prediction.h>
 #include <lib/matrix/matrix/math.hpp>
 
 using namespace time_literals;
@@ -51,8 +52,8 @@ private:
     // Buffer snapshot per invio DDS
     float _final_wave_gt_send[FFT_SIZE]{};
     float _displacement_send[FFT_SIZE]{};
-    float work_buf[FFT_SIZE]{};
     float _prediction_send[FFT_SIZE]{};
+    float work_buf[FFT_SIZE]{};
 
 
 
@@ -82,18 +83,18 @@ private:
     uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
     uORB::Subscription _vehicle_imu_status_sub{ORB_ID(vehicle_imu_status)};
     uORB::Subscription _marine_wave_sub{ORB_ID(marine_wave)};
-    uORB::Publication<marine_wave_prediction_s> _marine_prediction_pub{ORB_ID(marine_wave_prediction)};
+    uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+    uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
 
 
-    ;
+    vehicle_control_mode_s     _vehicle_control_mode{};
+     marine_wave_s             _last_wave{};
+    vehicle_attitude_s         _last_attitude{};
+    vehicle_imu_status_s       _last_imu_status{};
+    marine_wave_result_s       _log_msg{};
+    marine_sync_s              _sync_msg{};
+    zoh_utils::ZOHProcessor    _zoh_processor;
 
-    marine_wave_prediction_s _pred_msg{};
-    marine_wave_s        _last_wave{};
-    vehicle_attitude_s   _last_attitude{};
-    vehicle_imu_status_s _last_imu_status{};
-    marine_wave_result_s _log_msg{};
-    marine_sync_s        _sync_msg{};
-    zoh_utils::ZOHProcessor _zoh_processor;
 
     perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
     perf_counter_t _loop_interval_perf{perf_alloc(PC_INTERVAL, MODULE_NAME": interval")};

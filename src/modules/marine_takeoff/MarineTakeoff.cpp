@@ -1,5 +1,4 @@
 
-
 #include "MarineTakeoff.hpp"
 
 MarineTakeoff::MarineTakeoff() :
@@ -42,14 +41,77 @@ void MarineTakeoff::Run()
     perf_count(_loop_interval_perf);
 
     // 1. STATO VEICOLO
+     if (_parameter_update_sub.updated()) {
+        // clear update
+        parameter_update_s param_update;
+        _parameter_update_sub.copy(&param_update);
+        updateParams(); // update module parameters (in DEFINE_PARAMETERS)
+    }
+
+
+    // Example
+    //  update vehicle_status to check arming state
     if (_vehicle_status_sub.updated()) {
-        vehicle_status_s status;
-        if (_vehicle_status_sub.copy(&status)) {
-            _armed = (status.arming_state == vehicle_status_s::ARMING_STATE_ARMED);
+        vehicle_status_s vehicle_status;
+
+        if (_vehicle_status_sub.copy(&vehicle_status)) {
+
+            const bool armed = (vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED);
+            _armed = armed;
         }
     }
 
-    // 2. ACQUISIZIONE
+
+
+
+    _vehicle_control_mode_sub.update(&_vehicle_control_mode);
+
+    //if(_vehicle_control_mode.flag_control_marine_takeoff_enabled){
+    //  PX4_INFO("Marine Takeoff mode enabled");
+    //
+     if (!_armed) {
+        // Arm the vehicle
+        vehicle_command_s cmd{};
+        cmd.timestamp = hrt_absolute_time();
+        cmd.command = vehicle_command_s::VEHICLE_CMD_COMPONENT_ARM_DISARM;
+        cmd.param1 = 1.0f; // 1 = arm
+        cmd.target_system = 1;
+        cmd.target_component = 1;
+        cmd.source_system = 1;
+        cmd.source_component = 1;
+        cmd.from_external = false;
+
+        _vehicle_command_pub.publish(cmd);
+        PX4_INFO("Sent ARM command from MarineTakeoff module");
+    }
+
+
+
+
+    // If armed but not yet taken off
+    //if (_armed && !_takeoff_sent) {
+    //
+    //  vehicle_command_s mode_cmd{};
+    //  mode_cmd.timestamp = hrt_absolute_time();
+    //  mode_cmd.command = vehicle_command_s::VEHICLE_CMD_DO_SET_MODE;
+
+    //  mode_cmd.param1 = 1; // custom mode enabled
+    //  mode_cmd.param2 = 4;
+    //  mode_cmd.param3 = 2; // AUTO_TAKEOFF  Mode  for takeoff
+
+    //  mode_cmd.target_system = 1;
+    //  mode_cmd.target_component = 1;
+    //  mode_cmd.source_system = 1;
+    //  mode_cmd.source_component = 1;
+    //  mode_cmd.from_external = false;
+
+    //  _vehicle_command_pub.publish(mode_cmd);
+
+    //  PX4_INFO("Sent AUTO_TAKEOFF mode command");
+
+    //  _takeoff_sent = true;
+
+    //}
     const bool att_upd = _vehicle_attitude_sub.updated();
     const bool imu_upd = _vehicle_imu_status_sub.updated();
     if (att_upd) _vehicle_attitude_sub.copy(&_last_attitude);
@@ -77,10 +139,13 @@ void MarineTakeoff::Run()
             Vector3f acc_world = q.rotateVector(acc_body);
             float acc_z_pure = acc_world(2) + 9.80665f;
 
-            _buf_az[_fft_idx] = acc_z_pure;
-            _raw_wave_buf[_fft_idx] = _last_wave.wave_amplitude;
+            const  float * sources[] = { &acc_z_pure, &_last_wave.wave_amplitude };
+            float* targets[] = { _buf_az, _raw_wave_buf };
 
-            _fft_idx = (_fft_idx + 1) % FFT_SIZE;
+        // Riempie i buffer alla posizione _fft_idx
+            _zoh_processor.bufferDataMulti(sources, targets, 2, _fft_idx, FFT_SIZE);
+
+
             _total_samples++;
 
             if (_total_samples >= (int)FFT_SIZE) {
@@ -93,7 +158,9 @@ void MarineTakeoff::Run()
         if (_is_sending_results) {
                     SendChunks();
                 }
+
     perf_end(_loop_perf);
+    //}
 }
 
 void MarineTakeoff::process_fft_and_snapshot()
@@ -108,8 +175,16 @@ void MarineTakeoff::process_fft_and_snapshot()
 
     kiss_fftr(_fft_cfg, work_buf, _fft_out);
 
+
+      // --- TRUCCO DELLA COPIA ---
+    // Salviamo l'accelerazione pura in una copia prima di modificarla
+     static kiss_fft_cpx fft_copy[FFT_SIZE / 2 + 1];
+     memcpy(fft_copy, _fft_out, sizeof(_fft_out));
+
     _fft_out[0].r = 0.0f; _fft_out[0].i = 0.0f;
-    const float df = 250.0f / (float)FFT_SIZE;
+    const float Fs=250.0f;
+    const float df = Fs/ (float)FFT_SIZE;
+    const float dt = 1.0f / Fs;
 
     for (int k = 1; k < (int)(FFT_SIZE / 2 + 1); k++) {
         float freq = k * df;
@@ -130,10 +205,42 @@ void MarineTakeoff::process_fft_and_snapshot()
         _displacement_send[i] = _displacement_output[i] * norm_factor;
     }
 
+      // --- STEP B: PREDIZIONE (Il Futuro) ---
+    // Usiamo la COPIA (fft_copy) che ha ancora l'accelerazione pura!
+    for (int i = 0; i < (int)FFT_SIZE; i++) {
+        float tp = (float)(FFT_SIZE + i) * dt;
+        float h_p = 0.0f;
+
+        // Limite a 200 (~2Hz) per non sovraccaricare la CPU del drone
+        for (int k = 1; k < 200; k++) {
+            float freq = k * df;
+            if (freq >= 0.05f) {
+                // Leggiamo dalla COPIA
+                float mag_a = sqrtf(fft_copy[k].r * fft_copy[k].r + fft_copy[k].i * fft_copy[k].i) * 2.0f / FFT_SIZE;
+                float phase_a = atan2f(fft_copy[k].i, fft_copy[k].r);
+                float omega = 2.0f * M_PI_F * freq;
+
+                h_p += (mag_a / (omega * omega)) * cosf(omega * tp + phase_a);
+            }
+        }
+        _prediction_send[i] = h_p;
+    }
+
     _is_sending_results = true;
     _current_chunk_idx = 0;
     _cycle_count++;
     _total_samples = 0;
+
+    // --- AGGIUNGO  QUESTI PRINT QUI ---
+    float last_past = _displacement_send[FFT_SIZE - 1];
+    float first_future = _prediction_send[0];
+
+    PX4_INFO("Confronto Giunzione (NED): Passato[Fine]: %.3f | Futuro[Inizio]: %.3f",
+              (double)last_past, (double)first_future);
+
+    // Se i valori hanno segni opposti, questo print ti avvisa:
+    if ((last_past > 0 && first_future < 0) || (last_past < 0 && first_future > 0)) {
+        PX4_WARN("ATTENZIONE: L'onda è ribaltata! Controlla i segni.");}
 
     vehicle_command_s save_msg{};
     save_msg.command = 999;
@@ -144,7 +251,7 @@ void MarineTakeoff::process_fft_and_snapshot()
 void MarineTakeoff::SendChunks()
 {
     // 1. CONTROLLO TEMPORALE (PACING)
-    // Impedisce l'invio di più di un chunk ogni 8 millisecondi
+    // Impedisce l'invio di più di un chunk ogni 12 millisecondi
     static hrt_abstime last_send_time = 0;
     hrt_abstime now = hrt_absolute_time();
 
@@ -244,4 +351,6 @@ extern "C" __EXPORT int marine_takeoff_main(int argc, char *argv[])
 {
     return MarineTakeoff::main(argc, argv);
 }
+
+
 
