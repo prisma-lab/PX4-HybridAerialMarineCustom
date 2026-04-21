@@ -239,6 +239,8 @@ set(msg_files
 	MarineSync.msg
 	MarineWave.msg
 	MarineWaveResult.msg
+	MarineWavePrediction.msg
+
 )
 list(SORT msg_files)
 

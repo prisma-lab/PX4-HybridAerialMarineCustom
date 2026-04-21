@@ -1,5 +1,7 @@
+
+
 #include "MarineTakeoff.hpp"
-#include  <fstream>
+
 MarineTakeoff::MarineTakeoff() :
     ModuleParams(nullptr),
     ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default)
@@ -8,25 +10,23 @@ MarineTakeoff::MarineTakeoff() :
 
 MarineTakeoff::~MarineTakeoff()
 {
-    if (_fft_cfg) {
-                free(_fft_cfg);
-        }
+    if (_fft_cfg) { free(_fft_cfg); }
+    if (_fft_inv_cfg) { free(_fft_inv_cfg); }
     perf_free(_loop_perf);
     perf_free(_loop_interval_perf);
 }
 
 bool MarineTakeoff::init()
 {
+    _fft_cfg = kiss_fftr_alloc(FFT_SIZE, 0, nullptr, nullptr);
+    _fft_inv_cfg = kiss_fftr_alloc(FFT_SIZE, 1, nullptr, nullptr);
 
-        _fft_cfg = kiss_fftr_alloc(FFT_SIZE, 0, nullptr, nullptr);
-    _fft_inv_cfg=kiss_fftr_alloc(FFT_SIZE, 1, nullptr, nullptr);
-        if (_fft_cfg == nullptr) {
-                PX4_ERR("FFT allocation failed!");
-                return false;
-        }
-    // alternatively, Run on fixed interval
-     ScheduleOnInterval(4_ms);
+    if (_fft_cfg == nullptr || _fft_inv_cfg == nullptr) {
+        PX4_ERR("FFT allocation failed!");
+        return false;
+    }
 
+    ScheduleOnInterval(4_ms);
     return true;
 }
 
@@ -41,319 +41,147 @@ void MarineTakeoff::Run()
     perf_begin(_loop_perf);
     perf_count(_loop_interval_perf);
 
-    // Check if parameters have changed
-    if (_parameter_update_sub.updated()) {
-        // clear update
-        parameter_update_s param_update;
-        _parameter_update_sub.copy(&param_update);
-        updateParams(); // update module parameters (in DEFINE_PARAMETERS)
-    }
-
-
-    // Example
-    //  update vehicle_status to check arming state
+    // 1. STATO VEICOLO
     if (_vehicle_status_sub.updated()) {
-        vehicle_status_s vehicle_status;
-
-        if (_vehicle_status_sub.copy(&vehicle_status)) {
-
-            const bool armed = (vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED);
-
-            if (armed && !_armed) {
-                PX4_WARN("vehicle armed due to %d", vehicle_status.latest_arming_reason);
-
-            } else if (!armed && _armed) {
-                PX4_INFO("vehicle disarmed due to %d", vehicle_status.latest_disarming_reason);
-            }
-
-            _armed = armed;
+        vehicle_status_s status;
+        if (_vehicle_status_sub.copy(&status)) {
+            _armed = (status.arming_state == vehicle_status_s::ARMING_STATE_ARMED);
         }
     }
 
+    // 2. ACQUISIZIONE
+    const bool att_upd = _vehicle_attitude_sub.updated();
+    const bool imu_upd = _vehicle_imu_status_sub.updated();
+    if (att_upd) _vehicle_attitude_sub.copy(&_last_attitude);
+    if (imu_upd) _vehicle_imu_status_sub.copy(&_last_imu_status);
+    if (_marine_wave_sub.updated()) _marine_wave_sub.copy(&_last_wave);
 
-    // Example
-    //  grab latest accelerometer data
-    if (_sensor_accel_sub.updated()) {
-        sensor_accel_s accel;
-
-        if (_sensor_accel_sub.copy(&accel)) {
-            // DO WORK
-
-            // access parameter value (SYS_AUTOSTART)
-            if (_param_sys_autostart.get() == 1234) {
-                // do something if SYS_AUTOSTART is 1234
-            }
-        }
-    }
-
-    _vehicle_control_mode_sub.update(&_vehicle_control_mode);
-
-    //if(_vehicle_control_mode.flag_control_marine_takeoff_enabled){
-    //  PX4_INFO("Marine Takeoff mode enabled");
-    //
-     if (!_armed) {
-        // Arm the vehicle
-        vehicle_command_s cmd{};
-        cmd.timestamp = hrt_absolute_time();
-        cmd.command = vehicle_command_s::VEHICLE_CMD_COMPONENT_ARM_DISARM;
-        cmd.param1 = 1.0f; // 1 = arm
-        cmd.target_system = 1;
-        cmd.target_component = 1;
-        cmd.source_system = 1;
-        cmd.source_component = 1;
-        cmd.from_external = false;
-
-        _vehicle_command_pub.publish(cmd);
-        PX4_INFO("Sent ARM command from MarineTakeoff module");
-    }
-
-
-
-
-    // If armed but not yet taken off
-    //if (_armed && !_takeoff_sent) {
-    //
-    //  vehicle_command_s mode_cmd{};
-    //  mode_cmd.timestamp = hrt_absolute_time();
-    //  mode_cmd.command = vehicle_command_s::VEHICLE_CMD_DO_SET_MODE;
-
-    //  mode_cmd.param1 = 1; // custom mode enabled
-    //  mode_cmd.param2 = 4;
-    //  mode_cmd.param3 = 2; // AUTO_TAKEOFF  Mode  for takeoff
-
-    //  mode_cmd.target_system = 1;
-    //  mode_cmd.target_component = 1;
-    //  mode_cmd.source_system = 1;
-    //  mode_cmd.source_component = 1;
-    //  mode_cmd.from_external = false;
-
-    //  _vehicle_command_pub.publish(mode_cmd);
-
-    //  PX4_INFO("Sent AUTO_TAKEOFF mode command");
-
-    //  _takeoff_sent = true;
-
-    //}
-
-
-
-        // ======================================================
-      //  UPDATE  VEHICLE_ATTITUDE AND VEHICLE_IMU_STATUS
-    // ======================================================
-
-
-        const bool attitude_updated = _vehicle_attitude_sub.updated();
-    const bool imu_status_updated = _vehicle_imu_status_sub.updated();
-    const bool wave_update =_marine_wave_sub.updated();
-    if (attitude_updated) {
-        _vehicle_attitude_sub.copy(&_last_attitude);
-    }
-
-    if (imu_status_updated) {
-        _vehicle_imu_status_sub.copy(&_last_imu_status);
-    }
-
-   if (wave_update) {
-	_marine_wave_sub.copy(&_last_wave);
-	}
-
-       // ======================================================
-    // ZOH + Sampling at fastest topic update
-    // ======================================================
-        zoh_utils::ZOHProcessor::Input streams[] = {
-        {_last_attitude.q, _last_attitude.timestamp, sizeof(_last_attitude.q), attitude_updated},
-        {_last_imu_status.mean_accel, _last_imu_status.timestamp, sizeof(_last_imu_status.mean_accel), imu_status_updated}
+    zoh_utils::ZOHProcessor::Input streams[] = {
+        {_last_attitude.q, _last_attitude.timestamp, sizeof(_last_attitude.q), att_upd},
+        {_last_imu_status.mean_accel, _last_imu_status.timestamp, sizeof(_last_imu_status.mean_accel), imu_upd}
     };
 
-    auto result = _zoh_processor.process(streams, 2);
+    if (_zoh_processor.process(streams, 2).updated) {
 
-    if (result.updated) {
-        // Sync data
-        zoh_utils::ZOHProcessor::synchronize(_last_imu_status.mean_accel, _sync_msg.accel, sizeof(_sync_msg.accel));
-        _marine_sync_pub.publish(_sync_msg);
+        if (_cycle_count < _max_cycles ) {
 
+            if (_total_samples == 0) {
+                vehicle_command_s start_msg{};
+                start_msg.command = 888;
+                _vehicle_command_pub.publish(start_msg);
+                PX4_INFO("Inizio raccolta campioni...");
+            }
 
-        // 2. create quaternion use synchronized data
-    Quatf q(_last_attitude.q);
+            Quatf q(_last_attitude.q);
+            Vector3f acc_body(_last_imu_status.mean_accel[0], _last_imu_status.mean_accel[1], _last_imu_status.mean_accel[2]);
+            Vector3f acc_world = q.rotateVector(acc_body);
+            float acc_z_pure = acc_world(2) + 9.80665f;
 
-    // 3. create accelleration vector
-    Vector3f acc_body(_sync_msg.accel[0], _sync_msg.accel[1], _sync_msg.accel[2]);
+            _buf_az[_fft_idx] = acc_z_pure;
+            _raw_wave_buf[_fft_idx] = _last_wave.wave_amplitude;
 
-    // 4. Rotation from Body Frame to   World Frame
+            _fft_idx = (_fft_idx + 1) % FFT_SIZE;
+            _total_samples++;
 
-    Vector3f acc_world = q.rotateVector(acc_body);
-
-    // 5. Gravity Compensation
-    // PX4 follows the NED (North-East-Down) standard.
-    // When at rest, the world-frame Z-acceleration (Down) is approximately -9.80665 m/s².
-    // We add +9.80665f to center the signal at zero.
-    // Note: In this centered signal, POSITIVE values indicate downward acceleration,
-    // and NEGATIVE values indicate upward acceleration.
-    float acc_z_pure = acc_world(2) + 9.80665f;
-
-
-
-
-// --- VARIABILI DI STATO ---
-// Devono essere static per non essere resettate ad ogni Run()
-static int total_samples = 0;
-static int cycle_count = 0;
-const int MAX_CYCLES = 3;
-
-static float raw_acc_z_buffer[FFT_SIZE];
-static float final_raw_acc[FFT_SIZE];
-static float raw_wave[FFT_SIZE];
-static float final_wave_gt[FFT_SIZE];
-
-if (cycle_count<MAX_CYCLES) {
-    if (total_samples == 0) {
-        vehicle_command_s start_msg{};
-        start_msg.timestamp = hrt_absolute_time();
-        start_msg.command = 888; // ID Sincronizzazione: INIZIO RACCOLTA
-        start_msg.param1 = 1.0f;
-        _vehicle_command_pub.publish(start_msg);
-        PX4_INFO("ROS2: Inizia a registrare ORA!");
-    }
-    // 1. Salva il dato grezzo prima dell'incremento dell'indice
-    raw_acc_z_buffer[_fft_idx] = acc_z_pure;
-    raw_wave[_fft_idx] = _last_wave.wave_amplitude;
-
-
-    // 2. Preparazione liste per ZOH (Dichiarate UNA SOLA VOLTA)
-    const float* src_list[] = { &acc_z_pure };
-    float* dst_list[] = { _buf_az };
-
-    // Inserimento nel buffer (incrementa _fft_idx internamente)
-    _zoh_processor.bufferDataMulti(src_list, dst_list, 1, _fft_idx, FFT_SIZE);
-
-    total_samples++;
-
-    // 3. Quando arriviamo a 10 secondi (2500 campioni)
-    if (total_samples >= 5000) {
-
-
-
-        // Inviamo un comando che ROS2 può leggere
-
-        vehicle_command_s save_msg{};
-        save_msg.timestamp = hrt_absolute_time();
-        save_msg.command = 999; // ID Sincronizzazione: FINE E SALVA
-        _vehicle_command_pub.publish(save_msg);
-
-
-        PX4_INFO("10 secondi raggiunti. Inizio elaborazione...");
-
-        static float work_buf[FFT_SIZE];
-        float sum = 0.0f;
-
-        // --- STEP: SROTOLAMENTO ---
-        for (size_t i = 0; i < FFT_SIZE; i++) {
-            size_t circular_idx = (_fft_idx + i) % FFT_SIZE;
-            work_buf[i] = _buf_az[circular_idx];
-	    final_raw_acc[i] = raw_acc_z_buffer[circular_idx];
-	    final_wave_gt[i] = raw_wave[circular_idx];
-            sum += work_buf[i];
+            if (_total_samples >= (int)FFT_SIZE) {
+                process_fft_and_snapshot();
+            }
         }
 
 
-        // --- STEP: FFT ---
-        kiss_fftr(_fft_cfg, work_buf, _fft_out);
+    }
+        if (_is_sending_results) {
+                    SendChunks();
+                }
+    perf_end(_loop_perf);
+}
 
-    ///   fino a questo punto non ho alcun errore da qui in poi devo ancora testare
-float original_dc_r = _fft_out[0].r;
-float original_dc_i = _fft_out[0].i;
-// --- STEP 1: Inizializzazione parametri ---
-_fft_out[0].r = 0.0f; // Rimuovi DC
-_fft_out[0].i = 0.0f;
+void MarineTakeoff::process_fft_and_snapshot()
+{
 
-int num_bins = (FFT_SIZE / 2) + 1;
-const float Fs = 250.0f;
-const float df = Fs / (float)FFT_SIZE;
-const float two_pi = 2.0f * M_PI_F;
 
-// --- STEP 2: Ciclo di integrazione ---
-for (int k = 1; k < num_bins; k++) {
-    float freq = k * df;
+    for (size_t i = 0; i < FFT_SIZE; i++) {
+        size_t circ_idx = (_fft_idx + i) % FFT_SIZE;
+        work_buf[i] = _buf_az[circ_idx];
+        _final_wave_gt_send[i] = _raw_wave_buf[circ_idx];
+    }
 
-    // DEFINIAMO IS_PEAK:
-    // Invece di un array casuale, integriamo solo il range utile (es. 0.05Hz - 5Hz)
-    // Questo è il range tipico delle onde marine.
-    bool is_peak_logic = (freq >= 0.05f && freq <= 5.0f);
+    kiss_fftr(_fft_cfg, work_buf, _fft_out);
 
-    if (is_peak_logic) {
-        float omega = two_pi * freq;
-        // Doppia integrazione: 1 / -(omega^2)
-        float factor = 1.0f / -(omega * omega);
+    _fft_out[0].r = 0.0f; _fft_out[0].i = 0.0f;
+    const float df = 250.0f / (float)FFT_SIZE;
 
-        _fft_out[k].r *= factor;
-        _fft_out[k].i *= factor;
+    for (int k = 1; k < (int)(FFT_SIZE / 2 + 1); k++) {
+        float freq = k * df;
+        if (freq >= 0.05f && freq <= 5.0f) {
+            float omega = 2.0f * M_PI_F * freq;
+            float factor = -1.0f / (omega * omega);
+            _fft_out[k].r *= factor;
+            _fft_out[k].i *= factor;
+        } else {
+            _fft_out[k].r = 0.0f; _fft_out[k].i = 0.0f;
+        }
+    }
+
+    kiss_fftri(_fft_inv_cfg, _fft_out, _displacement_output);
+
+    const float norm_factor = -1.0f / (float)FFT_SIZE;
+    for (size_t i = 0; i < FFT_SIZE; i++) {
+        _displacement_send[i] = _displacement_output[i] * norm_factor;
+    }
+
+    _is_sending_results = true;
+    _current_chunk_idx = 0;
+    _cycle_count++;
+    _total_samples = 0;
+
+    vehicle_command_s save_msg{};
+    save_msg.command = 999;
+    _vehicle_command_pub.publish(save_msg);
+    PX4_INFO("FFT completata. Invio dati...");
+}
+
+void MarineTakeoff::SendChunks()
+{
+    // 1. CONTROLLO TEMPORALE (PACING)
+    // Impedisce l'invio di più di un chunk ogni 8 millisecondi
+    static hrt_abstime last_send_time = 0;
+    hrt_abstime now = hrt_absolute_time();
+
+    if (now - last_send_time < 12000) {
+        return; // Troppo presto, esce e riprova al prossimo ciclo di Run()
+    }
+
+    // 2. LOGICA DI INVIO
+    if (_current_chunk_idx < (int)(FFT_SIZE / 50)) {
+
+        int base = _current_chunk_idx * 50;
+
+        for (int i = 0; i < 50; i++) {
+            _log_msg.wave_amplitude[i] = _final_wave_gt_send[base + i];
+            _log_msg.displacement_z[i] = _displacement_send[base + i];
+        }
+
+        _log_msg.timestamp = now; // Usa il tempo corrente
+        _log_msg.cycle_count = _cycle_count - 1;
+        _log_msg.sample_idx = _current_chunk_idx;
+
+        // Pubblica il messaggio
+        _marine_wave_result_pub.publish(_log_msg);
+
+        // Aggiorna il timestamp dell'ultimo invio riuscito
+        last_send_time = now;
+
+        // Incrementa l'indice per il prossimo pacchetto
+        _current_chunk_idx++;
 
     } else {
-        // EQUIVALENZA MATLAB: Tutto ciò che non ci interessa va a zero
-        _fft_out[k].r = 0.0f;
-        _fft_out[k].i = 0.0f;
+        // Fine dello streaming
+        _is_sending_results = false;
+        _current_chunk_idx = 0;
+        PX4_INFO("Streaming completato senza perdite.");
     }
 }
- _fft_out[0].r = original_dc_r;
-_fft_out[0].i = original_dc_i;
-// --- STEP 3: Trasformata Inversa ---
-kiss_fftri(_fft_inv_cfg, _fft_out, _displacement_output);
-
-// --- STEP 4: Normalizzazione e Segno ---
-// Moltiplichiamo per -1.0f se vuoi invertire la fase (come nel tuo codice)
-// Dividiamo per FFT_SIZE perché KissFFT non è normalizzata  nota che vrx is enu px4 ned so -1
-const float norm_factor = -1.0f / (float)FFT_SIZE;
-
-for (size_t i = 0; i < FFT_SIZE; i++) {
-    _displacement_output[i] *= norm_factor;
-}
-
-//PX4_INFO("FFT_RESULT: Cycle %d | Sample0: raw_acc=%f, disp=%f",
-  //        cycle_count, (double)final_raw_acc[0], (double)_displacement_output[0]);
-if (cycle_count < MAX_CYCLES) {
-        for (size_t i = 0; i < FFT_SIZE; i++) {
-
-
-            _log_msg = {};
-
-    // 2. Assegna i valori assicurandoti che siano float (32 bit)
-    _log_msg.timestamp = hrt_absolute_time();
-    _log_msg.wave_amplitude = (float)final_wave_gt[i];
-    _log_msg.acc_raw_z = (float)final_raw_acc[i];
-    _log_msg.displacement_z = (float)_displacement_output[i];
-    _log_msg.cycle_count = (uint32_t)cycle_count;
-    _log_msg.sample_idx = (uint32_t)i;
-
-    _marine_wave_result_pub.publish(_log_msg);
-    px4_usleep(500);
-
-        }
-        }
-        PX4_INFO("Dati ciclo %d inviati a ROS via DDS", cycle_count);
-
-    // 2. INCREMENTO E RESET (Dopo il salvataggio)
-    cycle_count++;
-    total_samples = 0;
-
-    // 3. LOGICA FINALE
-    if (cycle_count >= MAX_CYCLES) {
-        PX4_WARN("=== ANALISI COMPLETATA ===");
-        PX4_ERR("DECOLLO NON POSSIBILE: Limite cicli raggiunto.");
-    }
-
-    }
-}
-
-
-
-
-
-
-}
-                perf_end(_loop_perf);
-        //}
-}
-
 int MarineTakeoff::task_spawn(int argc, char *argv[])
 {
     MarineTakeoff *instance = new MarineTakeoff();

@@ -93,6 +93,9 @@ publications:
   - topic: /fmu/out/marine_wave_result
     type: px4_msgs::msg::MarineWaveResult
 
+  - topic: /fmu/out/marine_wave_prediction
+    type: px4_msgs::msg::MarineWavePrediction
+
 
 # Create uORB::Publication
 subscriptions:
