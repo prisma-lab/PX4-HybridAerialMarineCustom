@@ -45,60 +45,60 @@ private:
     void Run() override;
 
     /**
-     * @brief Elabora i dati raccolti: calcola Heave passato e predice quello futuro.
+     * @brief Processes collected data: computes past Heave and predicts future Heave.
      */
     void process_fft_and_snapshot();
 
     /**
-     * @brief Invia i risultati a blocchi (chunks) via uORB/DDS per evitare saturazione.
+     * @brief Sends results in chunks via uORB/DDS to avoid saturation.
      */
     void SendChunks();
 
     /**
-     * @brief Esegue FFT, integrazione doppia e IFFT.
-     * @param input_time_buf Segnale di accelerazione in ingresso.
-     * @param output_time_buf Segnale di spostamento (Heave) in uscita.
-     * @param apply_integration Se true, applica il filtro -1/w^2.
+     * @brief Performs FFT, double integration, and IFFT.
+     * @param input_time_buf Input acceleration signal.
+     * @param output_time_buf Output displacement signal (Heave).
+     * @param apply_integration If true, applies the -1/w^2 filter.
      */
     void double_int(float* input_time_buf, float* output_time_buf, bool apply_integration, bool is_real_data);
 
     /**
-     * @brief Predice l'accelerazione futura basandosi sui coefficienti FFT salvati.
+     * @brief Predicts future acceleration based on stored FFT coefficients.
      */
     void predict_wave(float* prediction_buf, int prediction_samples);
 
-    // --- Costanti e Buffer di Memoria ---
+    // --- Constants and Memory Buffers ---
     static constexpr size_t FFT_SIZE = 5000;
 
-    // Buffer circolari per la raccolta dati
-    float _buf_az[FFT_SIZE]{};           // Accelerazione lineare verticale
-    float _raw_wave_buf[FFT_SIZE]{};     // Ground Truth (da simulatore)
+    // Circular buffers for data collection
+    float _buf_az[FFT_SIZE]{};           // Vertical linear acceleration
+    float _raw_wave_buf[FFT_SIZE]{};     // Ground truth (from simulator)
 
-    // Buffer di lavoro (snapshot) per elaborazione
-    float work_buf[FFT_SIZE]{};          // Buffer temporaneo multiuso
-    float _displacement_send[FFT_SIZE]{}; // Heave passato calcolato (20s)
-    float _prediction_send[FFT_SIZE]{};   // Heave futuro predetto (20s)
-    float _final_wave_gt_send[FFT_SIZE]{}; // Ground Truth salvata
+    // Work buffer (snapshot) for processing
+    float work_buf[FFT_SIZE]{};          // Temporary multi-purpose buffer
+    float _displacement_send[FFT_SIZE]{}; // Computed past Heave (20s)
+    float _prediction_send[FFT_SIZE]{};   // Predicted future Heave (20s)
+    float _final_wave_gt_send[FFT_SIZE]{}; // Saved ground truth
     float _prediction_old[FFT_SIZE]{};
 
-    // --- Stato del Modulo ---
-    int   _fft_idx{0};                   // Indice corrente nel buffer circolare
-    int   _total_samples{0};             // Campioni raccolti nel ciclo attuale
-    int   _cycle_count{0};               // Numero di FFT completate
-    const int _max_cycles = 3;          // Numero massimo di cicli di test
-    bool  _is_sending_results{false};    // Flag per lo streaming dei dati
-    int   _current_chunk_idx{0};         // Indice del chunk uORB in invio
-    bool  _armed{false};                 // Stato armamento drone
+    // --- Module State ---
+    int   _fft_idx{0};                   // Current index in circular buffer
+    int   _total_samples{0};             // Samples collected in current cycle
+    int   _cycle_count{0};               // Number of completed FFT cycles
+    const int _max_cycles = 3;          // Maximum number of test cycles
+    bool  _is_sending_results{false};    // Data streaming flag
+    int   _current_chunk_idx{0};         // uORB chunk send index
+    bool  _armed{false};                 // Drone armed state
     float windowed_buf[FFT_SIZE];
     float _windowed_buf_member[FFT_SIZE];
 
-
     // --- KissFFT ---
-    kiss_fftr_cfg _fft_cfg{nullptr};      // Configurazione FFT reale
-    kiss_fftr_cfg _fft_inv_cfg{nullptr};  // Configurazione IFFT reale
-    kiss_fft_cpx  _fft_out[FFT_SIZE / 2 + 1]{};       // Output FFT corrente
-    kiss_fft_cpx  _fft_accel_copy[FFT_SIZE / 2 + 1]{}; // Backup coefficienti accelerazione pura
+    kiss_fftr_cfg _fft_cfg{nullptr};      // Real FFT configuration
+    kiss_fftr_cfg _fft_inv_cfg{nullptr};  // Real IFFT configuration
+    kiss_fft_cpx  _fft_out[FFT_SIZE / 2 + 1]{};       // Current FFT output
+    kiss_fft_cpx  _fft_accel_copy[FFT_SIZE / 2 + 1]{}; // Backup of pure acceleration coefficients
     kiss_fft_cpx _fft_pure[FFT_SIZE / 2 + 1] {};
+
     // --- uORB Subscriptions & Publications ---
     uORB::Publication<marine_sync_s>            _marine_sync_pub{ORB_ID(marine_sync)};
     uORB::Publication<vehicle_command_s>        _vehicle_command_pub{ORB_ID(vehicle_command)};
@@ -112,7 +112,7 @@ private:
     uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
     uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
-    // Messaggi uORB
+    // uORB messages
     vehicle_control_mode_s     _vehicle_control_mode{};
     marine_wave_s              _last_wave{};
     vehicle_attitude_s         _last_attitude{};
