@@ -52,7 +52,7 @@ void MarineTakeoff::Run()
         }
     }
 
-    // Auto-Arming per ambiente simulato
+    // Auto-Arming
     if (!_armed) {
         vehicle_command_s cmd{};
         cmd.timestamp = hrt_absolute_time();
@@ -80,7 +80,7 @@ void MarineTakeoff::Run()
                 PX4_INFO("Inizio raccolta campioni...");
             }
 
-            // Trasformazione accelerazione in frame mondo
+            //  Transform acceleration into the world frame
             Quatf q(_last_attitude.q);
             Vector3f acc_body(_last_imu_status.mean_accel[0], _last_imu_status.mean_accel[1], _last_imu_status.mean_accel[2]);
             Vector3f acc_world = q.rotateVector(acc_body);
@@ -91,24 +91,24 @@ void MarineTakeoff::Run()
 
             _zoh_processor.bufferDataMulti(sources, targets, 2, _fft_idx, FFT_SIZE);
 
-            // Incrementiamo i campioni totali solo fino a riempire il buffer la prima volta
+            // Increment total samples only until the buffer is filled for the first time
             if (_total_samples < (int)FFT_SIZE) {
             _total_samples++;}
 
             static size_t step_counter = FFT_SIZE;
             step_counter++;
 
-            // 1. Controllo: il buffer è pieno per la prima volta?
+            // 1. Check: the buffer is full
             if (_total_samples >= (int)FFT_SIZE) {
-                // 2. Controllo: sono passati 5 secondi dall'ultima esecuzione?
+
                     if (step_counter >= FFT_SIZE) {
-                    // Calcola tutto
+
                         process_fft_and_snapshot();
-                        // Resetta il contatore: la prossima avverrà tra esattamente 1250 campioni
+                        // Reset counter
                         step_counter = 0;
 
 
-                        PX4_INFO("FFT eseguita al ciclo %d", _cycle_count);
+                        //PX4_INFO("FFT eseguita al ciclo %d", _cycle_count);
                 }
              }
         }
@@ -130,28 +130,27 @@ void MarineTakeoff::process_fft_and_snapshot()
         _final_wave_gt_send[i] = _raw_wave_buf[circ_idx];
     }
 
-    // 1. Passato: calcolato sui dati PURI
+     // 1. Current wave : computed from RAW data
     double_int(work_buf, _displacement_send, true, true);
 
-    // 2. Prepariamo i dati con finestra di HANN per la FASE
+    // 2. Prepare data using a HANN window for the PHASE
 
     for (size_t i = 0; i < FFT_SIZE; i++) {
         float hann = 0.5f * (1.0f - cosf(2.0f * M_PI_F * i / (float)(FFT_SIZE - 1)));
         windowed_buf[i] = work_buf[i] * hann;
     }
 
-    // FFT Finestrata (usata solo per la fase)
+    // Windowed FFT (used only for phase)
     kiss_fftr(_fft_cfg, windowed_buf, _fft_out);
 
-    // FFT Pura (usata per l'ampiezza reale senza schiacciamento)
 
+    // Pure FFT (used for true amplitude without attenuation)
     kiss_fftr(_fft_cfg, work_buf, _fft_pure);
 
-
+    // Get phase and amplitude
     for (size_t  k = 0; k < (FFT_SIZE / 2 + 1); k++) {
-        // Ampiezza REALE dai dati non schiacciati
+
         float mag_pure = sqrtf(_fft_pure[k].r * _fft_pure[k].r + _fft_pure[k].i * _fft_pure[k].i);
-        // Fase STABILE dai dati finestrati
         float phase_win = atan2f(_fft_out[k].i, _fft_out[k].r);
 
         _fft_accel_copy[k].r = mag_pure * cosf(phase_win);
@@ -160,7 +159,7 @@ void MarineTakeoff::process_fft_and_snapshot()
 
     memcpy(_prediction_old, _prediction_send, sizeof(_prediction_old));
 
-    // 4. Genera predizione
+    // 4. Predict wave
     predict_wave(work_buf, FFT_SIZE);
     double_int(work_buf, _prediction_send, true, false);
 
@@ -214,8 +213,8 @@ void MarineTakeoff::predict_wave(float* prediction_acc_buf, int prediction_sampl
     const float df = Fs / (float)FFT_SIZE;
     const float norm = 2.0f / (float)FFT_SIZE;
 
-    // T_buf è il tempo trascorso dal PRIMO campione del buffer all'ULTIMO.
-    // Per N campioni, gli intervalli sono N-1.
+    // T_buf is the time elapsed from the FIRST sample in the buffer to the LAST.
+    // For N samples, there are N-1 intervals.
     const float T_to_last_sample = (float)(FFT_SIZE - 1) * dt;
 
     memset(prediction_acc_buf, 0, prediction_samples * sizeof(float));
@@ -223,28 +222,28 @@ void MarineTakeoff::predict_wave(float* prediction_acc_buf, int prediction_sampl
     for (int k = 1; k < (int)(FFT_SIZE / 2); k++) {
         float freq = k * df;
 
-        // Restringiamo il range alle frequenze tipiche delle onde marine (0.05 - 0.6 Hz)
-        // 1.2 Hz è già un'onda molto corta/rumorosa per un drone.
+        // We restrict the range for reconstruction to typical ocean wave frequencies
         if (freq >= 0.1f && freq <= 0.8f) {
 
             float real = _fft_accel_copy[k].r;
             float imag = _fft_accel_copy[k].i;
             float mag_sq = (real * real + imag * imag);
 
-            // Alziamo leggermente la soglia per ignorare il ru more bianco dell'IMU
+
             if (mag_sq > 0.1f) {
                 float amplitude = sqrtf(mag_sq) * norm ;
                 float omega = 2.0f * M_PI_F * freq;
 
-                // Calcoliamo la fase iniziale
+
+                // Compute phase exactly at the last recorded sample
+                // Optimization: precompute constant values for this k
+                // Predict starting from sample t+1 (the first future point)
                 float phase_start = atan2f(imag, real);
 
-                // Calcoliamo la fase esattamente all'ultimo campione registrato
                 float phase_now = phase_start + (omega * T_to_last_sample);
 
-                // Ottimizzazione: pre-calcoliamo i valori costanti per questo k
+
                 for (int t_idx = 0; t_idx < prediction_samples; t_idx++) {
-                    // Prediciamo partendo dal campione t+1 (il primo futuro)
                     float t_future = (float)(t_idx + 1) * dt;
                     prediction_acc_buf[t_idx] += amplitude * cosf(omega * t_future + phase_now);
                 }
