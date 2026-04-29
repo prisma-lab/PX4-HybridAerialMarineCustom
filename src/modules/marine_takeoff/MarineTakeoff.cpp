@@ -123,41 +123,61 @@ void MarineTakeoff::Run()
 
 void MarineTakeoff::process_fft_and_snapshot()
 {
-
     _cycle_count++;
-    // 1. Estrazione snapshot (Passato)
     for (size_t i = 0; i < FFT_SIZE; i++) {
         size_t circ_idx = (_fft_idx + i) % FFT_SIZE;
         work_buf[i] = _buf_az[circ_idx];
         _final_wave_gt_send[i] = _raw_wave_buf[circ_idx];
     }
 
-    // 2. Calcolo Heave Passato (Backup coefficienti accelerazione)
+    // 1. Passato: calcolato sui dati PURI
     double_int(work_buf, _displacement_send, true, true);
 
+    // 2. Prepariamo i dati con finestra di HANN per la FASE
+
+    for (size_t i = 0; i < FFT_SIZE; i++) {
+        float hann = 0.5f * (1.0f - cosf(2.0f * M_PI_F * i / (float)(FFT_SIZE - 1)));
+        windowed_buf[i] = work_buf[i] * hann;
+    }
+
+    // FFT Finestrata (usata solo per la fase)
+    kiss_fftr(_fft_cfg, windowed_buf, _fft_out);
+
+    // FFT Pura (usata per l'ampiezza reale senza schiacciamento)
+
+    kiss_fftr(_fft_cfg, work_buf, _fft_pure);
+
+
+    for (size_t  k = 0; k < (FFT_SIZE / 2 + 1); k++) {
+        // Ampiezza REALE dai dati non schiacciati
+        float mag_pure = sqrtf(_fft_pure[k].r * _fft_pure[k].r + _fft_pure[k].i * _fft_pure[k].i);
+        // Fase STABILE dai dati finestrati
+        float phase_win = atan2f(_fft_out[k].i, _fft_out[k].r);
+
+        _fft_accel_copy[k].r = mag_pure * cosf(phase_win);
+        _fft_accel_copy[k].i = mag_pure * sinf(phase_win);
+    }
 
     memcpy(_prediction_old, _prediction_send, sizeof(_prediction_old));
-    // 3. Genera Predizione Accelerazione futura nel work_buf
+
+    // 4. Genera predizione
     predict_wave(work_buf, FFT_SIZE);
-
-    // 4. Integra la predizione per ottenere Heave futuro
     double_int(work_buf, _prediction_send, true, false);
-    // --- AGGIUNGI QUESTE STAMPE DI DEBUG ---
-
 
     _is_sending_results = true;
     _current_chunk_idx = 0;
-
-
-
 }
 
 void MarineTakeoff::double_int(float* input_time_buf, float* output_time_buf, bool apply_integration, bool is_real_data)
 {
     kiss_fftr(_fft_cfg, input_time_buf, _fft_out);
 
+
+
     if (is_real_data) {
         memcpy(_fft_accel_copy, _fft_out, sizeof(_fft_accel_copy));
+
+
     }
 
     const float Fs = 250.0f;
@@ -211,9 +231,9 @@ void MarineTakeoff::predict_wave(float* prediction_acc_buf, int prediction_sampl
             float imag = _fft_accel_copy[k].i;
             float mag_sq = (real * real + imag * imag);
 
-            // Alziamo leggermente la soglia per ignorare il rumore bianco dell'IMU
+            // Alziamo leggermente la soglia per ignorare il ru more bianco dell'IMU
             if (mag_sq > 0.1f) {
-                float amplitude = sqrtf(mag_sq) * norm;
+                float amplitude = sqrtf(mag_sq) * norm ;
                 float omega = 2.0f * M_PI_F * freq;
 
                 // Calcoliamo la fase iniziale

@@ -89,13 +89,16 @@ private:
     bool  _is_sending_results{false};    // Flag per lo streaming dei dati
     int   _current_chunk_idx{0};         // Indice del chunk uORB in invio
     bool  _armed{false};                 // Stato armamento drone
+    float windowed_buf[FFT_SIZE];
+    float _windowed_buf_member[FFT_SIZE];
+
 
     // --- KissFFT ---
     kiss_fftr_cfg _fft_cfg{nullptr};      // Configurazione FFT reale
     kiss_fftr_cfg _fft_inv_cfg{nullptr};  // Configurazione IFFT reale
     kiss_fft_cpx  _fft_out[FFT_SIZE / 2 + 1]{};       // Output FFT corrente
     kiss_fft_cpx  _fft_accel_copy[FFT_SIZE / 2 + 1]{}; // Backup coefficienti accelerazione pura
-
+    kiss_fft_cpx _fft_pure[FFT_SIZE / 2 + 1] {};
     // --- uORB Subscriptions & Publications ---
     uORB::Publication<marine_sync_s>            _marine_sync_pub{ORB_ID(marine_sync)};
     uORB::Publication<vehicle_command_s>        _vehicle_command_pub{ORB_ID(vehicle_command)};
