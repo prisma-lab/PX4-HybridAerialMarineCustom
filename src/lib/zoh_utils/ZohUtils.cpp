@@ -6,22 +6,21 @@ namespace zoh_utils {
 bool ZOHProcessor::bufferDataMulti(const float* data_sources[], float* buffers[],
                                   size_t num_channels, int &idx, int max_rows)
 {
-    // 1. Inserimento O(1) nella posizione corrente (la "testa" del buffer)
+    //  O(1) insertion at the current position (buffer "head")
     for (size_t i = 0; i < num_channels; i++) {
         if (data_sources[i] != nullptr && buffers[i] != nullptr) {
             buffers[i][idx] = *data_sources[i];
         }
     }
 
-    // 2. Avanzamento circolare dell'indice
+    // Circular index advancement
     idx = (idx + 1) % max_rows;
 
-    // 3. Logica di "Buffer Pronto"
-    // In modalità sliding window, una volta che il buffer è stato riempito la prima volta,
-    // è SEMPRE pronto (restituisce true ad ogni nuovo campione inserito).
-    // Nota: Per gestire il primissimo riempimento, potresti aver bisogno di un flag esterno,
-    // ma tecnicamente qui restituiamo true per attivare il calcolo.
-
+    // 3. "Buffer Ready" logic
+    // In sliding window mode, once the buffer has been filled for the first time,
+    // it is ALWAYS ready (returns true on every new sample inserted).
+    // Note: To handle the initial filling phase, you may need an external flag,
+    // but technically here we return true to trigger the computation.
     return true;
 }
 ZOHProcessor::Result ZOHProcessor::process(Input topics[], size_t count) {
