@@ -10,6 +10,8 @@ MarineTakeoff::~MarineTakeoff()
 {
     if (_fft_cfg) { free(_fft_cfg); }
     if (_fft_inv_cfg) { free(_fft_inv_cfg); }
+    if (_fft_cfg_att) { free(_fft_cfg_att); }
+    if (_fft_inv_cfg_att) { free(_fft_inv_cfg_att); }
     perf_free(_loop_perf);
     perf_free(_loop_interval_perf);
 }
@@ -18,8 +20,11 @@ bool MarineTakeoff::init()
 {
     _fft_cfg = kiss_fftr_alloc(FFT_SIZE, 0, nullptr, nullptr);
     _fft_inv_cfg = kiss_fftr_alloc(FFT_SIZE, 1, nullptr, nullptr);
+    _fft_cfg_att = kiss_fftr_alloc(FFT_SIZE, 0, nullptr, nullptr);
+    _fft_inv_cfg_att = kiss_fftr_alloc(FFT_SIZE, 1, nullptr, nullptr);
 
-    if (_fft_cfg == nullptr || _fft_inv_cfg == nullptr) {
+    if (_fft_cfg == nullptr || _fft_inv_cfg == nullptr
+        || _fft_cfg_att == nullptr || _fft_inv_cfg_att == nullptr) {
         PX4_ERR("FFT allocation failed!");
         return false;
     }
@@ -64,6 +69,9 @@ void MarineTakeoff::Run()
 
     const bool att_upd = _vehicle_attitude_sub.updated();
     const bool imu_upd = _vehicle_imu_status_sub.updated();
+
+    //_vehicle_control_mode_sub.update(&_vehicle_control_mode);
+    //if(_vehicle_control_mode.flag_control_marine_takeoff_enabled){
     if (att_upd) _vehicle_attitude_sub.copy(&_last_attitude);
     if (imu_upd) _vehicle_imu_status_sub.copy(&_last_imu_status);
     if (_marine_wave_sub.updated()) _marine_wave_sub.copy(&_last_wave);
@@ -86,10 +94,17 @@ void MarineTakeoff::Run()
             Vector3f acc_world = q.rotateVector(acc_body);
             float acc_z_pure = acc_world(2) + 9.80665f;
 
-            const float * sources[] = { &acc_z_pure, &_last_wave.wave_amplitude };
-            float* targets[] = { _buf_az, _raw_wave_buf };
+            matrix::Eulerf euler(q);
+            float current_roll = euler.phi();   // Roll rad
+            float current_pitch = euler.theta(); // Pitch rad
 
-            _zoh_processor.bufferDataMulti(sources, targets, 2, _fft_idx, FFT_SIZE);
+            // ---  BUFFER ---
+
+            const float * sources[] = { &acc_z_pure, &_last_wave.wave_amplitude, &current_roll, &current_pitch };
+            float* targets[] = { _buf_az, _raw_wave_buf, _buf_roll, _buf_pitch };
+
+
+            _zoh_processor.bufferDataMulti(sources, targets, 4, _fft_idx, FFT_SIZE);
 
             // Increment total samples only until the buffer is filled for the first time
             if (_total_samples < (int)FFT_SIZE) {
@@ -118,6 +133,7 @@ void MarineTakeoff::Run()
         SendChunks();
     }
 
+    //  }
     perf_end(_loop_perf);
 }
 
@@ -128,6 +144,8 @@ void MarineTakeoff::process_fft_and_snapshot()
         size_t circ_idx = (_fft_idx + i) % FFT_SIZE;
         work_buf[i] = _buf_az[circ_idx];
         _final_wave_gt_send[i] = _raw_wave_buf[circ_idx];
+        roll_work[i] = _buf_roll[circ_idx];
+        pitch_work[i] = _buf_pitch[circ_idx];
     }
 
      // 1. Current wave : computed from RAW data
@@ -160,8 +178,36 @@ void MarineTakeoff::process_fft_and_snapshot()
     memcpy(_prediction_old, _prediction_send, sizeof(_prediction_old));
 
     // 4. Predict wave
-    predict_wave(work_buf, FFT_SIZE);
+    predict_wave(work_buf, FFT_SIZE,_fft_accel_copy);
     double_int(work_buf, _prediction_send, true, false);
+
+    // --- PREDIZIONE ROLL ---
+    // "Carichiamo" la FFT del Roll nel vettore generico
+    kiss_fftr(_fft_cfg_att, roll_work, _fft_roll);
+
+    // Chiamata per il Roll (legge dal vettore generico)
+    predict_wave(_pred_roll_out, FFT_SIZE,_fft_roll);
+
+    // --- PREDIZIONE PITCH ---
+    // "Carichiamo" la FFT del Pitch nel vettore generico
+    kiss_fftr(_fft_cfg_att, pitch_work, _fft_pitch);
+
+    // Chiamata per il Pitch (legge dal vettore generico)
+    predict_wave(_pred_pitch_out, FFT_SIZE,_fft_pitch);
+
+    // --- STAMPA A VIDEO DI DEBUG (Ogni 100 campioni) ---
+    PX4_INFO("--- Analisi Predizione Assetto ---");
+    for (size_t i = 0; i < FFT_SIZE; i += 100) {
+        PX4_INFO("Campione %4d -> Roll: %6.2f deg | Pitch: %6.2f deg",
+            (int)i,
+            (double)math::degrees(_pred_roll_out[i]),
+            (double)math::degrees(_pred_pitch_out[i]));
+    }
+    PX4_INFO("----------------------------------");
+
+
+
+
 
     _is_sending_results = true;
     _current_chunk_idx = 0;
@@ -206,51 +252,46 @@ void MarineTakeoff::double_int(float* input_time_buf, float* output_time_buf, bo
     }
 }
 
-void MarineTakeoff::predict_wave(float* prediction_acc_buf, int prediction_samples)
+void MarineTakeoff::predict_wave(float* prediction_buf, int prediction_samples, kiss_fft_cpx* fft_source)
 {
     const float Fs = 250.0f;
     const float dt = 1.0f / Fs;
     const float df = Fs / (float)FFT_SIZE;
     const float norm = 2.0f / (float)FFT_SIZE;
-
-    // T_buf is the time elapsed from the FIRST sample in the buffer to the LAST.
-    // For N samples, there are N-1 intervals.
     const float T_to_last_sample = (float)(FFT_SIZE - 1) * dt;
 
-    memset(prediction_acc_buf, 0, prediction_samples * sizeof(float));
+    memset(prediction_buf, 0, prediction_samples * sizeof(float));
 
     for (int k = 1; k < (int)(FFT_SIZE / 2); k++) {
         float freq = k * df;
 
-        // We restrict the range for reconstruction to typical ocean wave frequencies
         if (freq >= 0.1f && freq <= 0.8f) {
 
-            float real = _fft_accel_copy[k].r;
-            float imag = _fft_accel_copy[k].i;
+
+            float real = fft_source[k].r;
+            float imag = fft_source[k].i;
             float mag_sq = (real * real + imag * imag);
 
-
             if (mag_sq > 0.1f) {
-                float amplitude = sqrtf(mag_sq) * norm ;
+                float amplitude = sqrtf(mag_sq) * norm;
                 float omega = 2.0f * M_PI_F * freq;
 
-
-                // Compute phase exactly at the last recorded sample
-                // Optimization: precompute constant values for this k
-                // Predict starting from sample t+1 (the first future point)
                 float phase_start = atan2f(imag, real);
-
                 float phase_now = phase_start + (omega * T_to_last_sample);
 
+                float phase_step = omega * dt;
+                float current_phase = phase_now + phase_step;
 
                 for (int t_idx = 0; t_idx < prediction_samples; t_idx++) {
-                    float t_future = (float)(t_idx + 1) * dt;
-                    prediction_acc_buf[t_idx] += amplitude * cosf(omega * t_future + phase_now);
+
+                    prediction_buf[t_idx] += amplitude * cosf(current_phase);
+                    current_phase += phase_step;
                 }
             }
         }
     }
 }
+
 void MarineTakeoff::SendChunks()
 {
     static hrt_abstime last_send_time = 0;

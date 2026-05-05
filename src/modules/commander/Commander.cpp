@@ -366,7 +366,7 @@ int Commander::custom_command(int argc, char *argv[])
 
 	if (!strcmp(argv[0], "mode")) {
 
-                		// CUSTOM PRISMA MARINE
+                // CUSTOM PRISMA MARINE
 		// Check if the drone is armed before switching to marine manual mode
 		uORB::SubscriptionData<actuator_armed_s> actuator_armed_sub{ORB_ID(actuator_armed)};
 		bool drone_armed = false;

@@ -65,7 +65,8 @@ private:
     /**
      * @brief Predicts future acceleration based on stored FFT coefficients.
      */
-    void predict_wave(float* prediction_buf, int prediction_samples);
+    // Aggiungi kiss_fft_cpx* fft_source
+void predict_wave(float* prediction_buf, int prediction_samples, kiss_fft_cpx* fft_source);
 
     // --- Constants and Memory Buffers ---
     static constexpr size_t FFT_SIZE = 5000;
@@ -91,13 +92,27 @@ private:
     bool  _armed{false};                 // Drone armed state
     float windowed_buf[FFT_SIZE];
     float _windowed_buf_member[FFT_SIZE];
+    float roll_work[FFT_SIZE]{};
+    float pitch_work[FFT_SIZE]{};
+
+// 2. Risultati della predizione (Output di predict_wave)
+    float _pred_roll_out[FFT_SIZE]{};
+    float _pred_pitch_out[FFT_SIZE]{};
+
+    // 3. Buffer circolare (Assicurati di averli se li usi in Run())
+    float _buf_roll[FFT_SIZE]{};
+    float _buf_pitch[FFT_SIZE]{};
 
     // --- KissFFT ---
     kiss_fftr_cfg _fft_cfg{nullptr};      // Real FFT configuration
     kiss_fftr_cfg _fft_inv_cfg{nullptr};  // Real IFFT configuration
+    kiss_fftr_cfg _fft_cfg_att{nullptr};
+    kiss_fftr_cfg _fft_inv_cfg_att{nullptr};
     kiss_fft_cpx  _fft_out[FFT_SIZE / 2 + 1]{};       // Current FFT output
     kiss_fft_cpx  _fft_accel_copy[FFT_SIZE / 2 + 1]{}; // Backup of pure acceleration coefficients
     kiss_fft_cpx _fft_pure[FFT_SIZE / 2 + 1] {};
+    kiss_fft_cpx  _fft_roll[FFT_SIZE / 2 + 1]{};
+    kiss_fft_cpx  _fft_pitch[FFT_SIZE / 2 + 1]{};
 
     // --- uORB Subscriptions & Publications ---
     uORB::Publication<marine_sync_s>            _marine_sync_pub{ORB_ID(marine_sync)};
