@@ -236,10 +236,16 @@ set(msg_files
 	VtolVehicleStatus.msg
 	Wind.msg
 	YawEstimatorStatus.msg
+	# Register custom marine-related uORB/DDS messages.
+	# These message definitions are used to automatically generate:
+	# - uORB publish/subscribe interfaces
+	# - DDS communication bindings
+	# - serialization/deserialization code
 	MarineSync.msg
 	MarineWave.msg
 	MarineWaveResult.msg
 	MarineWavePrediction.msg
+	MarineWindow.msg
 
 )
 list(SORT msg_files)

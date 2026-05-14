@@ -352,7 +352,7 @@
       <uri>coast_waves</uri>
     </include>
 
-    <!-- Load the plugin for the wind --> 
+    <!-- Load the plugin for the wind -->
     <plugin
       filename="libUSVWind.so"
       name="vrx::USVWind">
@@ -408,6 +408,5 @@
         }
       </message>
     </plugin>
-
   </world>
 </sdf>

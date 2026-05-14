@@ -100,6 +100,7 @@ const char *const nav_state_names[vehicle_status_s::NAVIGATION_STATE_MAX] = {
 	"External 4",
 	"External 5",
 	// CUSTOM PRISMA MARINE TAKEOFF
+	// removed external 8 and added the new state Marine Takeoff to the nav_state
 	"External 6",
 	"External 7",
 	//"External 8",

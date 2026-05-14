@@ -195,17 +195,18 @@ void MarineTakeoff::process_fft_and_snapshot()
     // Chiamata per il Pitch (legge dal vettore generico)
     predict_wave(_pred_pitch_out, FFT_SIZE,_fft_pitch);
 
-    // --- STAMPA A VIDEO DI DEBUG (Ogni 100 campioni) ---
-    PX4_INFO("--- Analisi Predizione Assetto ---");
-    for (size_t i = 0; i < FFT_SIZE; i += 100) {
-        PX4_INFO("Campione %4d -> Roll: %6.2f deg | Pitch: %6.2f deg",
-            (int)i,
-            (double)math::degrees(_pred_roll_out[i]),
-            (double)math::degrees(_pred_pitch_out[i]));
+     // --- STEP 1: COSTRUZIONE FINESTRA DI DECOLLO ---
+    // Chiamiamo la funzione
+    build_prediction_window();
+
+    // Debug rapido per vedere se la finestra si apre
+    int window_count = 0;
+    for(size_t i = 0; i < FFT_SIZE; i++) {
+        if(_final_takeoff_window[i] > 0.5f) window_count++;
     }
-    PX4_INFO("----------------------------------");
-
-
+    if(window_count > 0) {
+        PX4_INFO("Square Wave generata: %d campioni validi su %d", window_count, (int)FFT_SIZE);
+    }
 
 
 
@@ -305,7 +306,8 @@ void MarineTakeoff::SendChunks()
         for (int i = 0; i < 50; i++) {
             _log_msg.wave_amplitude[i] = _final_wave_gt_send[base + i];
             _log_msg.displacement_z[i] = _displacement_send[base + i];
-            _pred_msg.wave_prediction[i] = _prediction_old[base + i];;
+            _pred_msg.wave_prediction[i] = _prediction_old[base + i];
+            _window_msg.takeoff_window[i] = _final_takeoff_window[base + i];
 
         }
 
@@ -319,11 +321,42 @@ void MarineTakeoff::SendChunks()
         _pred_msg.sample_idx = _current_chunk_idx+100;
         _marine_prediction_pub.publish(_pred_msg);
 
+
+        _window_msg.timestamp = now;
+        _window_msg.cycle_count = _cycle_count;
+        _window_msg.sample_idx = _current_chunk_idx+100;
+        _marine_window_pub.publish(_window_msg);
+
         last_send_time = now;
         _current_chunk_idx++;
     } else {
         _is_sending_results = false;
         _current_chunk_idx = 0;
+    }
+}
+
+
+void MarineTakeoff::build_prediction_window()
+{
+    // Soglia MATLAB: 0.069 rad (~4 gradi)
+    const float attitude_threshold = 0.069f;
+
+    for (size_t i = 0; i < FFT_SIZE; i++) {
+
+        // 1. Verifica se l'assetto predetto è orizzontale (DR e DP < 0.069)
+        bool is_flat = (fabsf(_pred_roll_out[i]) < attitude_threshold) &&
+                       (fabsf(_pred_pitch_out[i]) < attitude_threshold);
+
+        // 2. Verifica se siamo sulla cresta dell'onda (Heave > 0)
+        // Nota: _pred_heave_out è il segnale dopo double_int
+        bool is_on_crest = (_prediction_send[i] < 0.0f );
+
+        // 3. Costruzione della Square Wave (newSQ nel tuo MATLAB)
+        if (is_flat && is_on_crest) {
+            _final_takeoff_window[i] = 1.0f;
+        } else {
+            _final_takeoff_window[i] = 0.0f;
+        }
     }
 }
 

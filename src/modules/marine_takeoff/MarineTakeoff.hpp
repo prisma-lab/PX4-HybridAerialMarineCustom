@@ -24,6 +24,7 @@
 #include <uORB/topics/marine_wave_result.h>
 #include <uORB/topics/marine_wave_prediction.h>
 #include <lib/matrix/matrix/math.hpp>
+#include <uORB/topics/marine_window.h>
 
 using namespace time_literals;
 using matrix::Quatf;
@@ -66,8 +67,9 @@ private:
      * @brief Predicts future acceleration based on stored FFT coefficients.
      */
     // Aggiungi kiss_fft_cpx* fft_source
-void predict_wave(float* prediction_buf, int prediction_samples, kiss_fft_cpx* fft_source);
+    void predict_wave(float* prediction_buf, int prediction_samples, kiss_fft_cpx* fft_source);
 
+    void build_prediction_window();
     // --- Constants and Memory Buffers ---
     static constexpr size_t FFT_SIZE = 5000;
 
@@ -94,6 +96,7 @@ void predict_wave(float* prediction_buf, int prediction_samples, kiss_fft_cpx* f
     float _windowed_buf_member[FFT_SIZE];
     float roll_work[FFT_SIZE]{};
     float pitch_work[FFT_SIZE]{};
+    float _final_takeoff_window[FFT_SIZE]{}; // Il risultato dello Step 1  window construction
 
 // 2. Risultati della predizione (Output di predict_wave)
     float _pred_roll_out[FFT_SIZE]{};
@@ -119,6 +122,7 @@ void predict_wave(float* prediction_buf, int prediction_samples, kiss_fft_cpx* f
     uORB::Publication<vehicle_command_s>        _vehicle_command_pub{ORB_ID(vehicle_command)};
     uORB::Publication<marine_wave_result_s>     _marine_wave_result_pub{ORB_ID(marine_wave_result)};
     uORB::Publication<marine_wave_prediction_s> _marine_prediction_pub{ORB_ID(marine_wave_prediction)};
+     uORB::Publication<marine_window_s>     _marine_window_pub{ORB_ID(marine_window)};
 
     uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
     uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
@@ -126,6 +130,7 @@ void predict_wave(float* prediction_buf, int prediction_samples, kiss_fft_cpx* f
     uORB::Subscription _marine_wave_sub{ORB_ID(marine_wave)};
     uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
     uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+    uORB::Subscription   _marine_window_sub{ORB_ID(marine_window)};
 
     // uORB messages
     vehicle_control_mode_s     _vehicle_control_mode{};
@@ -134,6 +139,7 @@ void predict_wave(float* prediction_buf, int prediction_samples, kiss_fft_cpx* f
     vehicle_imu_status_s       _last_imu_status{};
     marine_wave_result_s       _log_msg{};
     marine_wave_prediction_s   _pred_msg{};
+    marine_window_s            _window_msg {};
 
     // --- Utility ---
     zoh_utils::ZOHProcessor    _zoh_processor;
