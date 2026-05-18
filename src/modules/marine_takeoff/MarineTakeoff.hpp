@@ -112,6 +112,9 @@ private:
     bool _is_window_duration_valid{false};
     bool _was_window_valid{false};
     int _valid_window_start_idx{-1};
+    bool _takeoff_triggered{false};       // Evita invii multipli
+    bool _takeoff_completed{false};       // Blocca la FFT dopo il decollo
+    hrt_abstime _target_takeoff_time{0};   // Memorizza il millisecondo esatto
 
     // --- KissFFT ---
     kiss_fftr_cfg _fft_cfg{nullptr};      // Real FFT configuration
@@ -123,6 +126,7 @@ private:
     kiss_fft_cpx _fft_pure[FFT_SIZE / 2 + 1] {};
     kiss_fft_cpx  _fft_roll[FFT_SIZE / 2 + 1]{};
     kiss_fft_cpx  _fft_pitch[FFT_SIZE / 2 + 1]{};
+
 
     // --- uORB Subscriptions & Publications ---
     uORB::Publication<marine_sync_s>            _marine_sync_pub{ORB_ID(marine_sync)};

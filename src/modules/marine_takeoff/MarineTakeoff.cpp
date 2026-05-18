@@ -67,6 +67,36 @@ void MarineTakeoff::Run()
         _vehicle_command_pub.publish(cmd);
     }
 
+
+    // --- BLOCCO CONTROLLO TIMER NEL MAIN RUN ---
+    // if (_takeoff_triggered && !_takeoff_completed) {
+    //     if (hrt_absolute_time() >= _target_takeoff_time) {
+    //         PX4_WARN("Marine Takeoff: TEMPO SCADUTO! DECOLLO ORA!");
+
+    //         vehicle_command_s mode_cmd{};
+    //         mode_cmd.timestamp = hrt_absolute_time();
+    //         mode_cmd.command = vehicle_command_s::VEHICLE_CMD_DO_SET_MODE;
+
+    //         mode_cmd.param1 = 1.0f; // custom mode enabled
+    //         mode_cmd.param2 = 4.0f;
+    //         mode_cmd.param3 = 2.0f; // AUTO_TAKEOFF Mode avvia il navigator altrimenti non parte la modalita di takeoff
+
+    //         mode_cmd.target_system = 1;
+    //         mode_cmd.target_component = 1;
+    //         mode_cmd.source_system = 1;
+    //         mode_cmd.source_component = 1;
+    //         mode_cmd.from_external = false;
+
+    //         if (_vehicle_command_pub.publish(mode_cmd)) {
+    //             _takeoff_completed = true; // Ferma la FFT al ciclo successivo
+    //             PX4_INFO("Sent AUTO_TAKEOFF mode command. FFT Disattivata.");
+    //         } else {
+    //             PX4_ERR("Marine Takeoff: Errore nell'invio del comando di modalità!");
+    //         }
+    //     }
+    // }
+
+    if (!_takeoff_completed){
     const bool att_upd = _vehicle_attitude_sub.updated();
     const bool imu_upd = _vehicle_imu_status_sub.updated();
 
@@ -133,7 +163,7 @@ void MarineTakeoff::Run()
         SendChunks();
     }
 
-    //  }
+     }//}
     perf_end(_loop_perf);
 }
 
@@ -365,63 +395,54 @@ void MarineTakeoff::build_prediction_window()
 void MarineTakeoff::check_window_validity()
 {
     constexpr float dt = 0.004f;
-    constexpr size_t min_consecutive_steps = static_cast<size_t>(2.5f / dt); // 450 passi
-    constexpr int sample_offset = 5000; // Offset per allineamento con i log dei campioni reali
+    constexpr size_t min_consecutive_steps = static_cast<size_t>(1.8f / dt);
+    constexpr int sample_offset = 5000;
 
-    _is_window_duration_valid = false; // Reset iniziale
-    _valid_window_start_idx = -1;       // Reset dell'indice (-1 significa non trovato)
+    _is_window_duration_valid = false;
+    _valid_window_start_idx = -1;
 
-    // Protezione: se l'array è più piccolo di 450 passi, usiamo subito
     if (FFT_SIZE < min_consecutive_steps) {
         return;
     }
 
-    // Cicliamo su ogni elemento della predizione.
     for (size_t i = 0; i <= FFT_SIZE - min_consecutive_steps; i++) {
-
         bool current_element_has_1_8s_good = true;
 
-        // Controlliamo se i prossimi 450 passi sono TUTTI validi (valore 1.0f = BUONO)
         for (size_t j = 0; j < min_consecutive_steps; j++) {
-            // Se incontriamo un valore < 0.5f (ovvero uno 0), la finestra NON è buona
             if (_final_takeoff_window[i + j] < 0.5f) {
                 current_element_has_1_8s_good = false;
-
-                // Salta direttamente oltre il punto non valido per ottimizzare i cicli CPU
                 i = i + j;
                 break;
             }
         }
 
-        // Se il ciclo interno non è mai stato interrotto, significa che dall'indice 'i'
-        // partono esattamente 1.8 secondi consecutivi di finestra BUONA (tutti 1).
         if (current_element_has_1_8s_good) {
             _is_window_duration_valid = true;
-            _valid_window_start_idx = (int)i; // Salviamo l'elemento corretto trovato
-
-            break; // Abbiamo trovato la prima finestra valida, usciamo dal ciclo principale
+            _valid_window_start_idx = (int)i;
+            break;
         }
     }
 
-    // ----------------------------------------------------
-    // STAMPA A VIDEO SU CONSOLE PX4 (Solo al cambio di stato)
-    // ----------------------------------------------------
-    if (_is_window_duration_valid && !_was_window_valid) {
-        // Calcoliamo quanti secondi nel futuro rispetto all'inizio della predizione si trova la finestra
+
+    if (_is_window_duration_valid) {
         float tempo_inizio_finestra = (float)_valid_window_start_idx * dt;
 
-        // Calcolo dell'indice assoluto allineato (+ 5000)
-        int indice_allineato = _valid_window_start_idx + sample_offset;
+        if (!_was_window_valid) {
+            int indice_allineato = _valid_window_start_idx + sample_offset;
+            PX4_INFO("Marine Takeoff: FINESTRA VALIDA! Inizio tra %.3f s (Indice: %d)", (double)tempo_inizio_finestra, indice_allineato);
 
-        PX4_INFO("Marine Takeoff: FINESTRA VALIDA! Trovato blocco di 1.8s stabili (Valore 1).");
-        PX4_INFO(" -> Indice relativo: %d | Indice campione allineato (+5000): %d", _valid_window_start_idx, indice_allineato);
-        PX4_INFO(" -> La finestra inizia tra: %.3f secondi", (double)tempo_inizio_finestra);
+            // Salva il momento esatto in microsecondi nel futuro
+            _target_takeoff_time = hrt_absolute_time() + static_cast<hrt_abstime>(tempo_inizio_finestra * 1e6f);
+            _takeoff_triggered = true;
+        }
     }
     else if (!_is_window_duration_valid && _was_window_valid) {
-        PX4_WARN("Marine Takeoff: Finestra NON valida (Nessun blocco da 1.8s attivo rimasto nella predizione)");
+        PX4_WARN("Marine Takeoff: Finestra non più valida.");
+        if (!_takeoff_completed) {
+            _takeoff_triggered = false;
+        }
     }
 
-    // Salva lo stato attuale per il prossimo ciclo
     _was_window_valid = _is_window_duration_valid;
 }
 
