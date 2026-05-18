@@ -198,6 +198,7 @@ void MarineTakeoff::process_fft_and_snapshot()
      // --- STEP 1: COSTRUZIONE FINESTRA DI DECOLLO ---
     // Chiamiamo la funzione
     build_prediction_window();
+    check_window_validity();
 
     // Debug rapido per vedere se la finestra si apre
     int window_count = 0;
@@ -360,6 +361,69 @@ void MarineTakeoff::build_prediction_window()
     }
 }
 
+
+void MarineTakeoff::check_window_validity()
+{
+    constexpr float dt = 0.004f;
+    constexpr size_t min_consecutive_steps = static_cast<size_t>(2.5f / dt); // 450 passi
+    constexpr int sample_offset = 5000; // Offset per allineamento con i log dei campioni reali
+
+    _is_window_duration_valid = false; // Reset iniziale
+    _valid_window_start_idx = -1;       // Reset dell'indice (-1 significa non trovato)
+
+    // Protezione: se l'array è più piccolo di 450 passi, usiamo subito
+    if (FFT_SIZE < min_consecutive_steps) {
+        return;
+    }
+
+    // Cicliamo su ogni elemento della predizione.
+    for (size_t i = 0; i <= FFT_SIZE - min_consecutive_steps; i++) {
+
+        bool current_element_has_1_8s_good = true;
+
+        // Controlliamo se i prossimi 450 passi sono TUTTI validi (valore 1.0f = BUONO)
+        for (size_t j = 0; j < min_consecutive_steps; j++) {
+            // Se incontriamo un valore < 0.5f (ovvero uno 0), la finestra NON è buona
+            if (_final_takeoff_window[i + j] < 0.5f) {
+                current_element_has_1_8s_good = false;
+
+                // Salta direttamente oltre il punto non valido per ottimizzare i cicli CPU
+                i = i + j;
+                break;
+            }
+        }
+
+        // Se il ciclo interno non è mai stato interrotto, significa che dall'indice 'i'
+        // partono esattamente 1.8 secondi consecutivi di finestra BUONA (tutti 1).
+        if (current_element_has_1_8s_good) {
+            _is_window_duration_valid = true;
+            _valid_window_start_idx = (int)i; // Salviamo l'elemento corretto trovato
+
+            break; // Abbiamo trovato la prima finestra valida, usciamo dal ciclo principale
+        }
+    }
+
+    // ----------------------------------------------------
+    // STAMPA A VIDEO SU CONSOLE PX4 (Solo al cambio di stato)
+    // ----------------------------------------------------
+    if (_is_window_duration_valid && !_was_window_valid) {
+        // Calcoliamo quanti secondi nel futuro rispetto all'inizio della predizione si trova la finestra
+        float tempo_inizio_finestra = (float)_valid_window_start_idx * dt;
+
+        // Calcolo dell'indice assoluto allineato (+ 5000)
+        int indice_allineato = _valid_window_start_idx + sample_offset;
+
+        PX4_INFO("Marine Takeoff: FINESTRA VALIDA! Trovato blocco di 1.8s stabili (Valore 1).");
+        PX4_INFO(" -> Indice relativo: %d | Indice campione allineato (+5000): %d", _valid_window_start_idx, indice_allineato);
+        PX4_INFO(" -> La finestra inizia tra: %.3f secondi", (double)tempo_inizio_finestra);
+    }
+    else if (!_is_window_duration_valid && _was_window_valid) {
+        PX4_WARN("Marine Takeoff: Finestra NON valida (Nessun blocco da 1.8s attivo rimasto nella predizione)");
+    }
+
+    // Salva lo stato attuale per il prossimo ciclo
+    _was_window_valid = _is_window_duration_valid;
+}
 
 int MarineTakeoff::task_spawn(int argc, char *argv[])
 {

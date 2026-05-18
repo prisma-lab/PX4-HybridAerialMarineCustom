@@ -25,6 +25,7 @@
 #include <uORB/topics/marine_wave_prediction.h>
 #include <lib/matrix/matrix/math.hpp>
 #include <uORB/topics/marine_window.h>
+#include <px4_platform_common/log.h>
 
 using namespace time_literals;
 using matrix::Quatf;
@@ -70,6 +71,7 @@ private:
     void predict_wave(float* prediction_buf, int prediction_samples, kiss_fft_cpx* fft_source);
 
     void build_prediction_window();
+    void check_window_validity();
     // --- Constants and Memory Buffers ---
     static constexpr size_t FFT_SIZE = 5000;
 
@@ -105,6 +107,11 @@ private:
     // 3. Buffer circolare (Assicurati di averli se li usi in Run())
     float _buf_roll[FFT_SIZE]{};
     float _buf_pitch[FFT_SIZE]{};
+
+    // boleana per verificare se la finestra è valida
+    bool _is_window_duration_valid{false};
+    bool _was_window_valid{false};
+    int _valid_window_start_idx{-1};
 
     // --- KissFFT ---
     kiss_fftr_cfg _fft_cfg{nullptr};      // Real FFT configuration
