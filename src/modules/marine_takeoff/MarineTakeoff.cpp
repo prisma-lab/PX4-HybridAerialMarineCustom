@@ -68,33 +68,34 @@ void MarineTakeoff::Run()
     }
 
 
-    // --- BLOCCO CONTROLLO TIMER NEL MAIN RUN ---
-    // if (_takeoff_triggered && !_takeoff_completed) {
-    //     if (hrt_absolute_time() >= _target_takeoff_time) {
-    //         PX4_WARN("Marine Takeoff: TEMPO SCADUTO! DECOLLO ORA!");
+    // --- BLOCCO CONTROLLO TIMER NEL MAIN RUN (DISATTIVATO) ---
+/* if (_takeoff_triggered && !_takeoff_completed) {
+        if (hrt_absolute_time() >= _target_takeoff_time) {
+             PX4_WARN("Marine Takeoff: TEMPO SCADUTO! DECOLLO ORA!");
 
-    //         vehicle_command_s mode_cmd{};
-    //         mode_cmd.timestamp = hrt_absolute_time();
-    //         mode_cmd.command = vehicle_command_s::VEHICLE_CMD_DO_SET_MODE;
+             vehicle_command_s mode_cmd{};
+             mode_cmd.timestamp = hrt_absolute_time();
+             mode_cmd.command = vehicle_command_s::VEHICLE_CMD_DO_SET_MODE;
 
-    //         mode_cmd.param1 = 1.0f; // custom mode enabled
-    //         mode_cmd.param2 = 4.0f;
-    //         mode_cmd.param3 = 2.0f; // AUTO_TAKEOFF Mode avvia il navigator altrimenti non parte la modalita di takeoff
+             mode_cmd.param1 = 1.0f; // custom mode enabled
+             mode_cmd.param2 = 4.0f;
+             mode_cmd.param3 = 2.0f; // AUTO_TAKEOFF Mode avvia il navigator altrimenti non parte la modalita di takeoff
 
-    //         mode_cmd.target_system = 1;
-    //         mode_cmd.target_component = 1;
-    //         mode_cmd.source_system = 1;
-    //         mode_cmd.source_component = 1;
-    //         mode_cmd.from_external = false;
+             mode_cmd.target_system = 1;
+             mode_cmd.target_component = 1;
+             mode_cmd.source_system = 1;
+             mode_cmd.source_component = 1;
+             mode_cmd.from_external = false;
 
-    //         if (_vehicle_command_pub.publish(mode_cmd)) {
-    //             _takeoff_completed = true; // Ferma la FFT al ciclo successivo
-    //             PX4_INFO("Sent AUTO_TAKEOFF mode command. FFT Disattivata.");
-    //         } else {
-    //             PX4_ERR("Marine Takeoff: Errore nell'invio del comando di modalità!");
-    //         }
-    //     }
-    // }
+             if (_vehicle_command_pub.publish(mode_cmd)) {
+                 _takeoff_completed = true; // Ferma la FFT al ciclo successivo
+                 PX4_INFO("Sent AUTO_TAKEOFF mode command. FFT Disattivata.");
+             } else {
+                 PX4_ERR("Marine Takeoff: Errore nell'invio del comando di modalità!");
+             }
+         }
+     }
+*/
 
     if (!_takeoff_completed){
     const bool att_upd = _vehicle_attitude_sub.updated();
@@ -104,7 +105,7 @@ void MarineTakeoff::Run()
     //if(_vehicle_control_mode.flag_control_marine_takeoff_enabled){
     if (att_upd) _vehicle_attitude_sub.copy(&_last_attitude);
     if (imu_upd) _vehicle_imu_status_sub.copy(&_last_imu_status);
-    if (_marine_wave_sub.updated()) _marine_wave_sub.copy(&_last_wave);
+
 
     zoh_utils::ZOHProcessor::Input streams[] = {
         {_last_attitude.q, _last_attitude.timestamp, sizeof(_last_attitude.q), att_upd},
@@ -130,11 +131,11 @@ void MarineTakeoff::Run()
 
             // ---  BUFFER ---
 
-            const float * sources[] = { &acc_z_pure, &_last_wave.wave_amplitude, &current_roll, &current_pitch };
+            const float * sources[] = { &acc_z_pure,  &current_roll, &current_pitch };
             float* targets[] = { _buf_az, _raw_wave_buf, _buf_roll, _buf_pitch };
 
 
-            _zoh_processor.bufferDataMulti(sources, targets, 4, _fft_idx, FFT_SIZE);
+            _zoh_processor.bufferDataMulti(sources, targets, 3, _fft_idx, FFT_SIZE);
 
             // Increment total samples only until the buffer is filled for the first time
             if (_total_samples < (int)FFT_SIZE) {
@@ -147,7 +148,7 @@ void MarineTakeoff::Run()
             if (_total_samples >= (int)FFT_SIZE) {
 
                     if (step_counter >= FFT_SIZE) {
-
+                        _current_snapshot_time= hrt_absolute_time();
                         process_fft_and_snapshot();
                         // Reset counter
                         step_counter = 0;
@@ -173,7 +174,7 @@ void MarineTakeoff::process_fft_and_snapshot()
     for (size_t i = 0; i < FFT_SIZE; i++) {
         size_t circ_idx = (_fft_idx + i) % FFT_SIZE;
         work_buf[i] = _buf_az[circ_idx];
-        _final_wave_gt_send[i] = _raw_wave_buf[circ_idx];
+
         roll_work[i] = _buf_roll[circ_idx];
         pitch_work[i] = _buf_pitch[circ_idx];
     }
@@ -335,25 +336,25 @@ void MarineTakeoff::SendChunks()
         int base = _current_chunk_idx * 50;
 
         for (int i = 0; i < 50; i++) {
-            _log_msg.wave_amplitude[i] = _final_wave_gt_send[base + i];
+            _log_msg.wave_amplitude[i] = 0;
             _log_msg.displacement_z[i] = _displacement_send[base + i];
             _pred_msg.wave_prediction[i] = _prediction_old[base + i];
             _window_msg.takeoff_window[i] = _final_takeoff_window[base + i];
 
         }
 
-        _log_msg.timestamp = now;
+        _log_msg.timestamp =   _current_snapshot_time;
         _log_msg.cycle_count = _cycle_count;
         _log_msg.sample_idx = _current_chunk_idx;
         _marine_wave_result_pub.publish(_log_msg);
 
-        _pred_msg.timestamp = now;
+        _pred_msg.timestamp =   _current_snapshot_time;
         _pred_msg.cycle_count = _cycle_count;
         _pred_msg.sample_idx = _current_chunk_idx+100;
         _marine_prediction_pub.publish(_pred_msg);
 
 
-        _window_msg.timestamp = now;
+        _window_msg.timestamp =   _current_snapshot_time;
         _window_msg.cycle_count = _cycle_count;
         _window_msg.sample_idx = _current_chunk_idx+100;
         _marine_window_pub.publish(_window_msg);
@@ -372,18 +373,22 @@ void MarineTakeoff::build_prediction_window()
     // Soglia MATLAB: 0.069 rad (~4 gradi)
     const float attitude_threshold = 0.069f;
 
+
     for (size_t i = 0; i < FFT_SIZE; i++) {
 
-        // 1. Verifica se l'assetto predetto è orizzontale (DR e DP < 0.069)
-        bool is_flat = (fabsf(_pred_roll_out[i]) < attitude_threshold) &&
-                       (fabsf(_pred_pitch_out[i]) < attitude_threshold);
+        // 1. FLAT DETECTION (Equivalente a SQ > 0.5 in MATLAB)
+        // Verifichiamo se l'assetto futuro stimato è orizzontale
+        bool is_flat_predicted = (fabsf(_pred_roll_out[i]) < attitude_threshold) &&
+                                 (fabsf(_pred_pitch_out[i]) < attitude_threshold);
 
-        // 2. Verifica se siamo sulla cresta dell'onda (Heave > 0)
-        // Nota: _pred_heave_out è il segnale dopo double_int
-        bool is_on_crest = (_prediction_send[i] < 0.0f );
+        // 2. FILTRO DI FASE SULL'ACCELERAZIONE PREDETTA (MATLAB: acc < 0)
+        // Leggiamo direttamente da work_buf che contiene l'accelerazione futura
+        bool is_acc_negative = (_prediction_send[i] < 0.0f);
 
-        // 3. Costruzione della Square Wave (newSQ nel tuo MATLAB)
-        if (is_flat && is_on_crest) {
+        // 3. LOGICA DI AZZERAMENTO REPLICATA DA MATLAB
+        // Nel tuo script: se SQ > 0.5 e acc < 0 -> SQ = 0
+        // Tradotto: la finestra è attiva (1.0f) SOLO SE l'assetto è piatto E l'accelerazione è >= 0
+        if (is_flat_predicted && is_acc_negative) {
             _final_takeoff_window[i] = 1.0f;
         } else {
             _final_takeoff_window[i] = 0.0f;

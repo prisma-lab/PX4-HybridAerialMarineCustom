@@ -83,7 +83,6 @@ private:
     float work_buf[FFT_SIZE]{};          // Temporary multi-purpose buffer
     float _displacement_send[FFT_SIZE]{}; // Computed past Heave (20s)
     float _prediction_send[FFT_SIZE]{};   // Predicted future Heave (20s)
-    float _final_wave_gt_send[FFT_SIZE]{}; // Saved ground truth
     float _prediction_old[FFT_SIZE]{};
 
     // --- Module State ---
@@ -98,23 +97,25 @@ private:
     float _windowed_buf_member[FFT_SIZE];
     float roll_work[FFT_SIZE]{};
     float pitch_work[FFT_SIZE]{};
-    float _final_takeoff_window[FFT_SIZE]{}; // Il risultato dello Step 1  window construction
+    float _final_takeoff_window[FFT_SIZE]{}; //   window construction
+    float _pred_heave_velocity[FFT_SIZE]{};
 
-// 2. Risultati della predizione (Output di predict_wave)
     float _pred_roll_out[FFT_SIZE]{};
     float _pred_pitch_out[FFT_SIZE]{};
 
-    // 3. Buffer circolare (Assicurati di averli se li usi in Run())
+    // 3. Circular buffer
     float _buf_roll[FFT_SIZE]{};
     float _buf_pitch[FFT_SIZE]{};
 
-    // boleana per verificare se la finestra è valida
+
     bool _is_window_duration_valid{false};
     bool _was_window_valid{false};
     int _valid_window_start_idx{-1};
-    bool _takeoff_triggered{false};       // Evita invii multipli
+    bool _takeoff_triggered{false};       // trigger for takeoff
     bool _takeoff_completed{false};       // Blocca la FFT dopo il decollo
     hrt_abstime _target_takeoff_time{0};   // Memorizza il millisecondo esatto
+    hrt_abstime _snapshot_timestamp{0};
+    hrt_abstime _current_snapshot_time{0};
 
     // --- KissFFT ---
     kiss_fftr_cfg _fft_cfg{nullptr};      // Real FFT configuration
@@ -126,6 +127,7 @@ private:
     kiss_fft_cpx _fft_pure[FFT_SIZE / 2 + 1] {};
     kiss_fft_cpx  _fft_roll[FFT_SIZE / 2 + 1]{};
     kiss_fft_cpx  _fft_pitch[FFT_SIZE / 2 + 1]{};
+
 
 
     // --- uORB Subscriptions & Publications ---
