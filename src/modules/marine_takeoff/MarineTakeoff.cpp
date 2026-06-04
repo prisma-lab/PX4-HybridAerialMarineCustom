@@ -69,7 +69,7 @@ void MarineTakeoff::Run()
 
 
     // --- BLOCCO CONTROLLO TIMER NEL MAIN RUN (DISATTIVATO) ---
-/* if (_takeoff_triggered && !_takeoff_completed) {
+ if (_takeoff_triggered && !_takeoff_completed) {
         if (hrt_absolute_time() >= _target_takeoff_time) {
              PX4_WARN("Marine Takeoff: TEMPO SCADUTO! DECOLLO ORA!");
 
@@ -95,14 +95,14 @@ void MarineTakeoff::Run()
              }
          }
      }
-*/
+
 
     if (!_takeoff_completed){
     const bool att_upd = _vehicle_attitude_sub.updated();
     const bool imu_upd = _vehicle_imu_status_sub.updated();
 
-    //_vehicle_control_mode_sub.update(&_vehicle_control_mode);
-    //if(_vehicle_control_mode.flag_control_marine_takeoff_enabled){
+    _vehicle_control_mode_sub.update(&_vehicle_control_mode);
+    if(_vehicle_control_mode.flag_control_marine_takeoff_enabled){
     if (att_upd) _vehicle_attitude_sub.copy(&_last_attitude);
     if (imu_upd) _vehicle_imu_status_sub.copy(&_last_imu_status);
 
@@ -164,7 +164,8 @@ void MarineTakeoff::Run()
         SendChunks();
     }
 
-     }//}
+     }
+    }
     perf_end(_loop_perf);
 }
 
