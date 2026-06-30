@@ -57,6 +57,13 @@ void MarineTakeoff::Run()
         }
     }
 
+    _vehicle_control_mode_sub.update(&_vehicle_control_mode);
+    if (!_vehicle_control_mode.flag_control_marine_takeoff_enabled) {
+        if (_takeoff_completed || _takeoff_triggered) {
+            reset_module();
+        }
+    }
+
     // Auto-Arming
     if (!_armed) {
         vehicle_command_s cmd{};
@@ -68,7 +75,7 @@ void MarineTakeoff::Run()
     }
 
 
-    // --- BLOCCO CONTROLLO TIMER NEL MAIN RUN (DISATTIVATO) ---
+    // TAKEOFF 
  if (_takeoff_triggered && !_takeoff_completed) {
         if (hrt_absolute_time() >= _target_takeoff_time) {
              PX4_WARN("Marine Takeoff: TEMPO SCADUTO! DECOLLO ORA!");
@@ -77,9 +84,9 @@ void MarineTakeoff::Run()
              mode_cmd.timestamp = hrt_absolute_time();
              mode_cmd.command = vehicle_command_s::VEHICLE_CMD_DO_SET_MODE;
 
-             mode_cmd.param1 = 1.0f; // custom mode enabled
+             mode_cmd.param1 = 1.0f; 
              mode_cmd.param2 = 4.0f;
-             mode_cmd.param3 = 2.0f; // AUTO_TAKEOFF Mode avvia il navigator altrimenti non parte la modalita di takeoff
+             mode_cmd.param3 = 2.0f; 
 
              mode_cmd.target_system = 1;
              mode_cmd.target_component = 1;
@@ -88,14 +95,13 @@ void MarineTakeoff::Run()
              mode_cmd.from_external = false;
 
              if (_vehicle_command_pub.publish(mode_cmd)) {
-                 _takeoff_completed = true; // Ferma la FFT al ciclo successivo
-                 PX4_INFO("Sent AUTO_TAKEOFF mode command. FFT Disattivata.");
+                 _takeoff_completed = true; // stop fft 
+                 //PX4_INFO("Sent TAKEOFF  command. stop FFT .");
              } else {
-                 PX4_ERR("Marine Takeoff: Errore nell'invio del comando di modalità!");
+                 PX4_ERR(" Error takoff not sent");
              }
          }
      }
-
 
     if (!_takeoff_completed){
     const bool att_upd = _vehicle_attitude_sub.updated();
@@ -154,7 +160,7 @@ void MarineTakeoff::Run()
                         step_counter = 0;
 
 
-                        //PX4_INFO("FFT eseguita al ciclo %d", _cycle_count);
+                        //PX4_INFO("FFT cycle number  %d", _cycle_count);
                 }
              }
         }
@@ -209,37 +215,37 @@ void MarineTakeoff::process_fft_and_snapshot()
 
     memcpy(_prediction_old, _prediction_send, sizeof(_prediction_old));
 
-    // 4. Predict wave
+    // HEAVE MOTION  prediction
     predict_wave(work_buf, FFT_SIZE,_fft_accel_copy);
     double_int(work_buf, _prediction_send, true, false);
 
-    // --- PREDIZIONE ROLL ---
-    // "Carichiamo" la FFT del Roll nel vettore generico
+    // ROLL  Prediction
+   
     kiss_fftr(_fft_cfg_att, roll_work, _fft_roll);
 
-    // Chiamata per il Roll (legge dal vettore generico)
+    
     predict_wave(_pred_roll_out, FFT_SIZE,_fft_roll);
 
-    // --- PREDIZIONE PITCH ---
-    // "Carichiamo" la FFT del Pitch nel vettore generico
+    //  PITCH   prediction 
+
     kiss_fftr(_fft_cfg_att, pitch_work, _fft_pitch);
 
     // Chiamata per il Pitch (legge dal vettore generico)
     predict_wave(_pred_pitch_out, FFT_SIZE,_fft_pitch);
 
-     // --- STEP 1: COSTRUZIONE FINESTRA DI DECOLLO ---
-    // Chiamiamo la funzione
+     // takeoff window 
     build_prediction_window();
     check_window_validity();
 
-    // Debug rapido per vedere se la finestra si apre
+    /*
+    // Debug 
     int window_count = 0;
     for(size_t i = 0; i < FFT_SIZE; i++) {
         if(_final_takeoff_window[i] > 0.5f) window_count++;
     }
     if(window_count > 0) {
-        PX4_INFO("Square Wave generata: %d campioni validi su %d", window_count, (int)FFT_SIZE);
-    }
+        PX4_INFO("Square Wave sample: %d campioni validi su %d", window_count, (int)FFT_SIZE);
+}*/
 
 
 
@@ -326,6 +332,24 @@ void MarineTakeoff::predict_wave(float* prediction_buf, int prediction_samples, 
     }
 }
 
+
+void MarineTakeoff::reset_module()
+{
+    _takeoff_triggered = false;
+    _takeoff_completed = false; 
+    _total_samples = 0;
+    _cycle_count = 0;
+    _is_sending_results = false;
+    _was_window_valid = false;
+    _fft_idx = 0;
+    
+    // clear buffer
+    memset(_buf_az, 0, sizeof(_buf_az));
+    memset(_buf_roll, 0, sizeof(_buf_roll));
+    memset(_buf_pitch, 0, sizeof(_buf_pitch));
+    
+    PX4_INFO("Modulo resettato. Pronto per nuova acquisizione.");
+}
 void MarineTakeoff::SendChunks()
 {
     static hrt_abstime last_send_time = 0;
@@ -371,24 +395,20 @@ void MarineTakeoff::SendChunks()
 
 void MarineTakeoff::build_prediction_window()
 {
-    // Soglia MATLAB: 0.069 rad (~4 gradi)
-    const float attitude_threshold = 0.069f;
+    // set threshold 
+    const float attitude_threshold = _param_att_threshold.get();;
 
 
     for (size_t i = 0; i < FFT_SIZE; i++) {
 
-        // 1. FLAT DETECTION (Equivalente a SQ > 0.5 in MATLAB)
-        // Verifichiamo se l'assetto futuro stimato è orizzontale
+        //  FLAT DETECTION 
         bool is_flat_predicted = (fabsf(_pred_roll_out[i]) < attitude_threshold) &&
                                  (fabsf(_pred_pitch_out[i]) < attitude_threshold);
 
-        // 2. FILTRO DI FASE SULL'ACCELERAZIONE PREDETTA (MATLAB: acc < 0)
-        // Leggiamo direttamente da work_buf che contiene l'accelerazione futura
+       // WAVE CREST DETECTION
         bool is_acc_negative = (_prediction_send[i] < 0.0f);
 
-        // 3. LOGICA DI AZZERAMENTO REPLICATA DA MATLAB
-        // Nel tuo script: se SQ > 0.5 e acc < 0 -> SQ = 0
-        // Tradotto: la finestra è attiva (1.0f) SOLO SE l'assetto è piatto E l'accelerazione è >= 0
+       
         if (is_flat_predicted && is_acc_negative) {
             _final_takeoff_window[i] = 1.0f;
         } else {
@@ -401,7 +421,8 @@ void MarineTakeoff::build_prediction_window()
 void MarineTakeoff::check_window_validity()
 {
     constexpr float dt = 0.004f;
-    constexpr size_t min_consecutive_steps = static_cast<size_t>(1.8f / dt);
+    const float win_time = _param_win_time.get();
+    const size_t  min_consecutive_steps = static_cast<size_t>(win_time / dt);
     constexpr int sample_offset = 5000;
 
     _is_window_duration_valid = false;
@@ -412,17 +433,17 @@ void MarineTakeoff::check_window_validity()
     }
 
     for (size_t i = 0; i <= FFT_SIZE - min_consecutive_steps; i++) {
-        bool current_element_has_1_8s_good = true;
+        bool current_element_has_2s_good = true;
 
         for (size_t j = 0; j < min_consecutive_steps; j++) {
             if (_final_takeoff_window[i + j] < 0.5f) {
-                current_element_has_1_8s_good = false;
+                current_element_has_2s_good = false;
                 i = i + j;
                 break;
             }
         }
 
-        if (current_element_has_1_8s_good) {
+        if (current_element_has_2s_good) {
             _is_window_duration_valid = true;
             _valid_window_start_idx = (int)i;
             break;
@@ -435,15 +456,15 @@ void MarineTakeoff::check_window_validity()
 
         if (!_was_window_valid) {
             int indice_allineato = _valid_window_start_idx + sample_offset;
-            PX4_INFO("Marine Takeoff: FINESTRA VALIDA! Inizio tra %.3f s (Indice: %d)", (double)tempo_inizio_finestra, indice_allineato);
+           // PX4_INFO("Marine Takeoff: WINDOW DETECTED! Inizio tra %.3f s (Indice: %d)", (double)tempo_inizio_finestra, indice_allineato);
 
-            // Salva il momento esatto in microsecondi nel futuro
+            
             _target_takeoff_time = hrt_absolute_time() + static_cast<hrt_abstime>(tempo_inizio_finestra * 1e6f);
             _takeoff_triggered = true;
         }
     }
     else if (!_is_window_duration_valid && _was_window_valid) {
-        PX4_WARN("Marine Takeoff: Finestra non più valida.");
+       // PX4_WARN("Marine Takeoff: NO WINDOW DETECTED .");
         if (!_takeoff_completed) {
             _takeoff_triggered = false;
         }

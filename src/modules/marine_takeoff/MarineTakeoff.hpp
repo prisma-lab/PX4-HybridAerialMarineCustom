@@ -69,6 +69,7 @@ private:
      */
     // Aggiungi kiss_fft_cpx* fft_source
     void predict_wave(float* prediction_buf, int prediction_samples, kiss_fft_cpx* fft_source);
+    void reset_module();
 
     void build_prediction_window();
     void check_window_validity();
@@ -103,7 +104,7 @@ private:
     float _pred_roll_out[FFT_SIZE]{};
     float _pred_pitch_out[FFT_SIZE]{};
 
-    // 3. Circular buffer
+    //  Circular buffer
     float _buf_roll[FFT_SIZE]{};
     float _buf_pitch[FFT_SIZE]{};
 
@@ -112,8 +113,9 @@ private:
     bool _was_window_valid{false};
     int _valid_window_start_idx{-1};
     bool _takeoff_triggered{false};       // trigger for takeoff
-    bool _takeoff_completed{false};       // Blocca la FFT dopo il decollo
-    hrt_abstime _target_takeoff_time{0};   // Memorizza il millisecondo esatto
+    bool _takeoff_completed{false};       // STOP la FFT d after takeoff 
+    bool _marine_prev{false};             //  reset 
+    hrt_abstime _target_takeoff_time{0};   // takeoff time  saved 
     hrt_abstime _snapshot_timestamp{0};
     hrt_abstime _current_snapshot_time{0};
 
@@ -161,6 +163,8 @@ private:
 
     DEFINE_PARAMETERS(
         (ParamInt<px4::params::SYS_AUTOSTART>) _param_sys_autostart,
-        (ParamInt<px4::params::SYS_AUTOCONFIG>) _param_sys_autoconfig
+        (ParamInt<px4::params::SYS_AUTOCONFIG>) _param_sys_autoconfig,
+        (ParamFloat<px4::params::MARINE_ATT_TH>) _param_att_threshold,
+        (ParamFloat<px4::params::MARINE_WIN_TIME>) _param_win_time
     )
 };
