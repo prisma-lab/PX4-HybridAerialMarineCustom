@@ -1,5 +1,8 @@
 #pragma once
 
+
+#include <uORB/topics/offboard_control_mode.h>
+#include <uORB/topics/trajectory_setpoint.h>
 #include <algorithm>
 #include <px4_platform_common/defines.h>
 #include <px4_platform_common/module.h>
@@ -26,6 +29,7 @@
 #include <lib/matrix/matrix/math.hpp>
 #include <uORB/topics/marine_window.h>
 #include <px4_platform_common/log.h>
+#include <uORB/topics/manual_control_setpoint.h>
 
 using namespace time_literals;
 using matrix::Quatf;
@@ -44,6 +48,9 @@ public:
     int print_status() override;
 
 private:
+bool _offboard_mode_sent{false};
+uORB::Publication<offboard_control_mode_s> _offboard_control_mode_pub{ORB_ID(offboard_control_mode)};
+    uORB::Publication<trajectory_setpoint_s> _trajectory_setpoint_pub{ORB_ID(trajectory_setpoint)};
     void Run() override;
 
     /**
@@ -113,9 +120,9 @@ private:
     bool _was_window_valid{false};
     int _valid_window_start_idx{-1};
     bool _takeoff_triggered{false};       // trigger for takeoff
-    bool _takeoff_completed{false};       // STOP la FFT d after takeoff 
-    bool _marine_prev{false};             //  reset 
-    hrt_abstime _target_takeoff_time{0};   // takeoff time  saved 
+    bool _takeoff_completed{false};       // STOP la FFT d after takeoff
+    bool _marine_prev{false};             //  reset
+    hrt_abstime _target_takeoff_time{0};   // takeoff time  saved
     hrt_abstime _snapshot_timestamp{0};
     hrt_abstime _current_snapshot_time{0};
 
@@ -146,7 +153,6 @@ private:
     uORB::Subscription _vehicle_control_mode_sub{ORB_ID(vehicle_control_mode)};
     uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
     uORB::Subscription   _marine_window_sub{ORB_ID(marine_window)};
-
     // uORB messages
     vehicle_control_mode_s     _vehicle_control_mode{};
     marine_wave_s              _last_wave{};
