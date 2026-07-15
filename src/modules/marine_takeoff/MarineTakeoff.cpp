@@ -86,7 +86,7 @@ void MarineTakeoff::Run()
     // TAKEOFF
  if (_takeoff_triggered && !_takeoff_completed) {
         if (hrt_absolute_time() >= _target_takeoff_time) {
-             PX4_WARN("Marine Takeoff: TEMPO SCADUTO! DECOLLO ORA!");
+             PX4_WARN("Marine Takeoff: Takeoff start !");
 
              vehicle_command_s mode_cmd{};
              mode_cmd.timestamp = hrt_absolute_time();
@@ -131,7 +131,7 @@ void MarineTakeoff::Run()
         if (_cycle_count < _max_cycles) {
 
             if (_total_samples == 0) {
-                PX4_INFO("Inizio raccolta campioni...");
+                PX4_INFO("Sample acquisition ...");
             }
 
             //  Transform acceleration into the world frame
@@ -240,7 +240,7 @@ void MarineTakeoff::process_fft_and_snapshot()
 
     kiss_fftr(_fft_cfg_att, pitch_work, _fft_pitch);
 
-    // Chiamata per il Pitch (legge dal vettore generico)
+
     predict_wave(_pred_pitch_out, FFT_SIZE,_fft_pitch);
 
      // takeoff window
@@ -254,7 +254,7 @@ void MarineTakeoff::process_fft_and_snapshot()
         if(_final_takeoff_window[i] > 0.5f) window_count++;
     }
     if(window_count > 0) {
-        PX4_INFO("Square Wave sample: %d campioni validi su %d", window_count, (int)FFT_SIZE);
+        PX4_INFO("Square Wave sample: %d good sample  %d", window_count, (int)FFT_SIZE);
 }
 
 
@@ -358,7 +358,7 @@ void MarineTakeoff::reset_module()
     memset(_buf_roll, 0, sizeof(_buf_roll));
     memset(_buf_pitch, 0, sizeof(_buf_pitch));
 
-    PX4_INFO("Modulo resettato. Pronto per nuova acquisizione.");
+    PX4_INFO("reset module.Ready again .");
 }
 void MarineTakeoff::SendChunks()
 {
@@ -432,7 +432,7 @@ void MarineTakeoff::check_window_validity()
 {
     constexpr float dt = 0.004f;
     const float win_time = _param_win_time.get();
-    const size_t  min_consecutive_steps = static_cast<size_t>(win_time / dt);
+    const size_t  min_consecutive_steps = static_cast<size_t>(win_time / dt)-300;
     constexpr int sample_offset = 5000;
 
     _is_window_duration_valid = false;
@@ -466,7 +466,7 @@ void MarineTakeoff::check_window_validity()
 
         if (!_was_window_valid) {
             int indice_allineato = _valid_window_start_idx + sample_offset;
-           PX4_INFO("Marine Takeoff: WINDOW DETECTED! Inizio tra %.3f s (Indice: %d)", (double)tempo_inizio_finestra, indice_allineato);
+           PX4_INFO("Marine Takeoff: WINDOW DETECTED! start in  %.3f s (sample index: %d)", (double)tempo_inizio_finestra, indice_allineato);
 
 
             _target_takeoff_time = hrt_absolute_time() + static_cast<hrt_abstime>(tempo_inizio_finestra * 1e6f);
@@ -496,7 +496,7 @@ int MarineTakeoff::task_spawn(int argc, char *argv[])
         }
 
     } else {
-        PX4_ERR("Allocazione fallita");
+        PX4_ERR("failed allocation ");
     }
 
     delete instance;
@@ -508,8 +508,8 @@ int MarineTakeoff::task_spawn(int argc, char *argv[])
 
 int MarineTakeoff::print_status()
 {
-    PX4_INFO("Cicli FFT completati: %d", _cycle_count);
-    PX4_INFO("Campioni correnti: %d / %d", _total_samples, (int)FFT_SIZE);
+    PX4_INFO("FFT completed: %d", _cycle_count);
+    PX4_INFO("current sample : %d / %d", _total_samples, (int)FFT_SIZE);
 
     perf_print_counter(_loop_perf);
     perf_print_counter(_loop_interval_perf);
@@ -518,7 +518,7 @@ int MarineTakeoff::print_status()
 
 int MarineTakeoff::custom_command(int argc, char *argv[])
 {
-    return print_usage("Comando sconosciuto");
+    return print_usage("command unknown");
 }
 
 int MarineTakeoff::print_usage(const char *reason)
@@ -530,7 +530,7 @@ int MarineTakeoff::print_usage(const char *reason)
     PRINT_MODULE_DESCRIPTION(
         R"DESCR_STR(
 ### Descrizione
-Modulo per analisi e predizione del moto ondoso (Heave).
+Heave motion and takeoff module .
 )DESCR_STR");
 
     PRINT_MODULE_USAGE_NAME("marine_takeoff", "system");
