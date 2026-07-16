@@ -201,9 +201,9 @@ void MarineTakeoff::process_fft_and_snapshot()
     // 2. Prepare data using a HANN window for the PHASE
 
     for (size_t i = 0; i < FFT_SIZE; i++) {
-       // float hann = 0.5f * (1.0f - cosf(2.0f * M_PI_F * i / (float)(FFT_SIZE - 1)));
-        windowed_buf[i] = work_buf[i] ;//* hann;
-      //  windowed_buf[i] = work_buf[i] * hann; if motors are spinnig fast
+       float hann = 0.5f * (1.0f - cosf(2.0f * M_PI_F * i / (float)(FFT_SIZE - 1)));
+        windowed_buf[i] = work_buf[i] ;
+       windowed_buf[i] = work_buf[i] * hann;
     }
 
     // Windowed FFT (used only for phase)
@@ -432,7 +432,7 @@ void MarineTakeoff::check_window_validity()
 {
     constexpr float dt = 0.004f;
     const float win_time = _param_win_time.get();
-    const size_t  min_consecutive_steps = static_cast<size_t>(win_time / dt)-300;
+    const size_t  min_consecutive_steps = static_cast<size_t>(win_time / dt);
     constexpr int sample_offset = 5000;
 
     _is_window_duration_valid = false;

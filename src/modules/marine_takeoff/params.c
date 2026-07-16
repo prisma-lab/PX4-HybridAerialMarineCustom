@@ -1,7 +1,7 @@
 /**
  * @file params.c
  *
- * Parameters defined by the marine takeoff module 
+ * Parameters defined by the marine takeoff module
  *
  * @author Paola Percuoco
  */
@@ -13,7 +13,7 @@
  * @min 0.0
  * @max 1.0
  * @decimal 3
- * @group Marine Takeoff 
+ * @group Marine Takeoff
  */
 PARAM_DEFINE_FLOAT(MARINE_ATT_TH, 0.069f);
 
@@ -23,7 +23,7 @@ PARAM_DEFINE_FLOAT(MARINE_ATT_TH, 0.069f);
  * @min 0.5
  * @max 10.0
  * @decimal 1
- * @group Marine Takeoff 
+ * @group Marine Takeoff
  */
-PARAM_DEFINE_FLOAT(MARINE_WIN_TIME, 2.0f);
+PARAM_DEFINE_FLOAT(MARINE_WIN_TIME, 0.8f);
 
