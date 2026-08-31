@@ -14,7 +14,7 @@ Andrea Capuozzo, Fabio Ruggiero, Vincenzo Lippiello, "Custom PX4 firmware for hy
 # How to use
 Clone the repository with submodules
 ```sh
-git clone --recurse-submodule https://github.com/prisma-lab/PX4-Hybrid_Aerial_Marine_Custom.git
+git clone --recurse-submodule https://github.com/prisma-lab/PX4-HybridAerialMarineCustom.git
 ```
 
 ## Run the simulation
