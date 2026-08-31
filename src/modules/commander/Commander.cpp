@@ -966,7 +966,10 @@ Commander::handle_command(const vehicle_command_s &cmd)
 				const bool drone_armed = isArmed();
 				const bool drone_landed = _vehicle_land_detected.maybe_landed;
 
-				if ((drone_armed || !drone_landed) && (_vehicle_status.nav_state != vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE)) {
+				if ((drone_armed || !drone_landed) && (_vehicle_status.nav_state != vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE) 
+				&& (_vehicle_status.nav_state != vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL) 
+				&& (_vehicle_status.nav_state != vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS) 
+				&& (_vehicle_status.nav_state != vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF)) {
 					mavlink_log_critical(&_mavlink_log_pub, "Mode switch denied: Marine mode requires landed and disarmed\t");
 					events::send(events::ID("commander_prisma_marine_mode_locked"), events::Log::Critical,
 						     "Mode switch denied: Marine mode requires landed and disarmed");

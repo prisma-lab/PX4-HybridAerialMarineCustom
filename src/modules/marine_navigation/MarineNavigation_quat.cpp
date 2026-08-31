@@ -107,13 +107,13 @@ void MarineNavigation::Run()
 			if(module_initialization) {
 				yaw_cont = yaw_cont + wrap(rpy(2) - yaw_fb_prev, M_PI); // Continuous yaw angle
 				yaw_fb_prev = rpy(2);
-				quat_fb = Quatf(cos(yaw_cont / 2), 0, 0, -sin(yaw_cont / 2)); // Quaternion feedback from yaw angle
+				quat_fb = Quatf(cos(yaw_cont / 2), 0, 0, sin(yaw_cont / 2)); // Quaternion feedback from yaw angle
 			}
 
 			else if(!module_initialization) {
 				yaw_cont = rpy(2);
 				yaw_fb_prev = rpy(2);
-				quat_fb = Quatf(cos(rpy(2) / 2), 0, 0, -sin(rpy(2) / 2)); // Quaternion feedback from yaw angle
+				quat_fb = Quatf(cos(rpy(2) / 2), 0, 0, sin(rpy(2) / 2)); // Quaternion feedback from yaw angle
 				quat_d = quat_fb; // Initialize desired quaternion with the first feedback
 				module_initialization = true; // Set flag to true after initialization
 			}

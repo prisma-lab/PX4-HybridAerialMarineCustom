@@ -122,6 +122,16 @@ void MulticopterLandDetector::_update_topics()
 		_mission_result_sub.copy(&_mission_result);
 		landing_on_water = _mission_result.prisma_marine_active;
 	}
+	else if(_vehicle_control_mode_sub.updated())
+	{
+		_vehicle_control_mode_sub.copy(&vehicle_control_mode);
+		if (vehicle_control_mode.flag_control_prisma_marine_manual_enabled || vehicle_control_mode.flag_control_prisma_marine_manual_ts_enabled || vehicle_control_mode.flag_control_prisma_marine_manual_ff_enabled) {
+			landing_on_water = true;
+		} 
+		else {
+			landing_on_water = false;
+		}
+	}
 	// END CUSTOM
 }
 
