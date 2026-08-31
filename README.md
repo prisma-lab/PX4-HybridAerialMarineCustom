@@ -6,9 +6,7 @@ __abstract__ Marine surveys aimed at mapping and monitoring aquatic environments
 ## Article
 The description of the firmware architecture, and the integration with the standard PX4 control stack are described in the following article:
 
-Andrea Capuozzo, Fabio Ruggiero, Vincenzo Lippiello, "Custom PX4 firmware for hybrid aerial-marine autonomous missions", submitted to the 2026 International Conference on Unmanned Aircraft System (ICUAS ’26)  June 15-18, Corfu, Greece
-
-This work is currently under review
+Andrea Capuozzo, Fabio Ruggiero, Vincenzo Lippiello, "Custom PX4 firmware for hybrid aerial-marine autonomous missions", SPAR (Springer Proceedings in Advanced Robotics) paper for the I-RIM 3D Conference 2026, October 23-25 2026, Rome, Italy
 
 ## Video
 
