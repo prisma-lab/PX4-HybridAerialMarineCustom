@@ -612,6 +612,10 @@
                             "name": "prisma_marine_manual_ff",
                             "description": "PRISMA Marine Manual Navigation FF"
                         },
+                        "39": {
+                            "name": "marine_takeoff",
+                            "description": "Marine Takeoff"
+                        },
                         "255": {
                             "name": "unknown",
                             "description": "[Unknown]"

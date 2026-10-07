@@ -202,6 +202,7 @@ void FlightModeManager::start_flight_task()
 		|| _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL
 		|| _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS
 		|| _vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF
+		|| (_vehicle_status_sub.get().nav_state == vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF)
 		|| task_failure) {
 	// END CUSTOM
 		found_some_task = true;

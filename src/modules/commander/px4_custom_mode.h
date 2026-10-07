@@ -92,7 +92,8 @@ enum PX4_CUSTOM_SUB_MODE_PRISMA {
 	PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL,
 	//PX4_CUSTOM_SUB_MODE_PRISMA_AUTO_MARINE,
 	PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL_TS,  // manual mode with feed forward control of thrust and steering
-	PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL_FF   // manual mode with feed forward control over thrust
+	PX4_CUSTOM_SUB_MODE_PRISMA_MARINE_MANUAL_FF,  // manual mode with feed forward control over thrust
+	PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF = 5         // Preserve existing PRISMA sub-mode values 1..4
 };
 // END CUSTOM
 
@@ -244,6 +245,11 @@ static inline union px4_custom_mode get_px4_custom_mode(uint8_t nav_state)
 		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_EXTERNAL8;
 		break;
 	// CUSTOM PRISMA MARINE
+	case vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF:
+		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_PRISMA;
+		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF;
+		break;
+
 	case vehicle_status_s::NAVIGATION_STATE_PRISMA_1:
 		custom_mode.main_mode = PX4_CUSTOM_MAIN_MODE_PRISMA;
 		custom_mode.sub_mode = PX4_CUSTOM_SUB_MODE_PRISMA_1;

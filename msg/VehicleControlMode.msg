@@ -22,6 +22,9 @@ bool flag_control_prisma_marine_manual_ff_enabled        # true if Prisma manual
 bool flag_control_prisma_auto_marine_enabled              # true if Prisma auto marine control is enabled
 ## END CUSTOM
 
+# Marine takeoff is independent of the existing PRISMA navigation flags.
+bool flag_control_marine_takeoff_enabled
+
 # TODO: use dedicated topic for external requests
 uint8 source_id                  # Mode ID (nav_state)
 

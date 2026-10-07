@@ -257,6 +257,7 @@ sensors start
 commander start
 # CUSTOM
 marine_navigation start
+marine_takeoff start
 # END CUSTOM
 
 if ! pwm_out_sim start -m sim

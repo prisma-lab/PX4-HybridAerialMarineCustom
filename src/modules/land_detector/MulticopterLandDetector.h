@@ -138,6 +138,7 @@ private:
 	bool _rotational_movement{false};
 	bool _has_low_throttle{false};
 	bool _close_to_ground_or_skipped_check{false};
+	bool _marine_takeoff_enabled{false};
 	bool _below_gnd_effect_hgt{false};	///< vehicle height above ground is below height where ground effect occurs
 
 	DEFINE_PARAMETERS_CUSTOM_PARENT(

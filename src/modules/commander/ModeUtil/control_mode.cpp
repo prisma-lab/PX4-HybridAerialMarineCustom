@@ -48,6 +48,11 @@ void getVehicleControlMode(uint8_t nav_state, uint8_t vehicle_type,
 {
 
 	switch (nav_state) {
+	case vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF:
+		vehicle_control_mode.flag_control_marine_takeoff_enabled = true;
+		vehicle_control_mode.flag_control_allocation_enabled = true;
+		break;
+
 
 	// CUSTOM PRISMA MARINE
 	case vehicle_status_s::NAVIGATION_STATE_PRISMA_1:

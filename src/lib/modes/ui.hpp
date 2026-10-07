@@ -60,6 +60,7 @@ static inline uint32_t getValidNavStates()
 	       (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_FOLLOW_TARGET) |
 	       (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_PRECLAND) |
 	       (1u << vehicle_status_s::NAVIGATION_STATE_ORBIT) |
+	       (1u << vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF) |
 	       (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_VTOL_TAKEOFF) |
 		   // CUSTOM PRISMA MARINE
 		   (1u << vehicle_status_s::NAVIGATION_STATE_AUTO_VTOL_TAKEOFF) |
@@ -82,7 +83,7 @@ const char *const nav_state_names[vehicle_status_s::NAVIGATION_STATE_MAX] = {
 	"Return",
 	"6: unallocated",
 	"7: unallocated",
-	"8: unallocated",
+	"Marine Takeoff",
 	"9: unallocated",
 	"Acro",
 	"11: UNUSED",

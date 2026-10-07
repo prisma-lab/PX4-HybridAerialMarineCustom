@@ -461,7 +461,10 @@ int Commander::custom_command(int argc, char *argv[])
 				PX4_ERR("Cannot switch to marine manual mode while the vehicle is armed or flying.");
 			}  
 			// END CUSTOM
-			else {
+			else if (!strcmp(argv[1], "marine_takeoff") && !drone_armed && drone_landed) {
+				send_vehicle_command(vehicle_command_s::VEHICLE_CMD_DO_SET_MODE, 1, PX4_CUSTOM_MAIN_MODE_PRISMA,
+						     PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF);
+			} else {
 				PX4_ERR("argument %s unsupported.", argv[1]);
 			}
 
@@ -670,7 +673,8 @@ transition_result_t Commander::arm(arm_disarm_reason_t calling_reason, bool run_
 	if (_param_com_home_en.get() && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL 
 			&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS 
 			&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF
-		    && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_AUTO_MARINE) {
+		    && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_AUTO_MARINE
+		    && _vehicle_status.nav_state != vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF) {
 	// END CUSTOM
 		_home_position.setHomePosition();
 	}
@@ -916,6 +920,9 @@ Commander::handle_command(const vehicle_command_s &cmd)
 					if (custom_sub_mode > 0) {
 
 						switch (custom_sub_mode) {
+						case PX4_CUSTOM_SUB_MODE_MARINE_TAKEOFF:
+							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF;
+							break;
 						case PX4_CUSTOM_SUB_MODE_PRISMA_1:
 							//PX4_INFO("Detected desired PRISMA1 sub state");
 							desired_nav_state = vehicle_status_s::NAVIGATION_STATE_PRISMA_1;
@@ -1898,7 +1905,8 @@ void Commander::run()
 			(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF) ||
 			(_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_PRISMA_AUTO_MARINE);
 
-		if (in_prisma_marine && (_vehicle_land_detected.landed || _vehicle_land_detected.maybe_landed)) {
+		if ((in_prisma_marine || _vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF)
+		    && (_vehicle_land_detected.landed || _vehicle_land_detected.maybe_landed)) {
 			lock_home_position_update = true;
 		}
 		// END CUSTOM
@@ -1913,7 +1921,8 @@ void Commander::run()
 		if (_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL 
 			&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS 
 			&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF
-		    && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_AUTO_MARINE)
+		    && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_AUTO_MARINE
+		    && _vehicle_status.nav_state != vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF)
 		{//END CUSTOM
 		_home_position.update(_param_com_home_en.get(), !isArmed() && _vehicle_land_detected.landed);
 		}
@@ -1948,7 +1957,8 @@ void Commander::run()
 		//if ((now >= _last_health_and_arming_check + 100_ms) || _status_changed || nav_state_or_failsafe_changed) 
 		if (((now >= _last_health_and_arming_check + 100_ms) || _status_changed || nav_state_or_failsafe_changed) && 
 			(_vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL && _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS && 
-			 _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF))
+			 _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF
+			 && _vehicle_status.nav_state != vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF))
 		// END CUSTOM
 		{
 			_last_health_and_arming_check = now;
@@ -2390,6 +2400,7 @@ void Commander::handleAutoDisarm()
 			&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_TS 
 			&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_MARINE_MANUAL_FF)
 			//&& _vehicle_status.nav_state != _vehicle_status.NAVIGATION_STATE_PRISMA_AUTO_MARINE) 
+			&& _vehicle_status.nav_state != vehicle_status_s::NAVIGATION_STATE_MARINE_TAKEOFF
 			&& (_param_com_disarm_land.get() > 0 || _param_com_disarm_preflight.get() > 0)) {
 		// END CUSTOM
 		// CUSTOM PRISMA MARINE AUTO

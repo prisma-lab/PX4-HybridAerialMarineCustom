@@ -241,6 +241,7 @@ set(msg_files
 	VehicleMarineSetpoint.msg
 	## END-CUSTOM
 )
+list(APPEND msg_files MarineSync.msg MarineWave.msg MarineWaveResult.msg MarineWavePrediction.msg MarineWindow.msg)
 list(SORT msg_files)
 
 px4_list_make_absolute(msg_files ${CMAKE_CURRENT_SOURCE_DIR} ${msg_files})

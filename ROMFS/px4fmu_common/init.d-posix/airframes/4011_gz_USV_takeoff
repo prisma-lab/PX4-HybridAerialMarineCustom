@@ -1,0 +1,81 @@
+#!/bin/sh
+#
+# @name PRISMA USV marine takeoff
+#
+# @type Quadrotor
+#
+
+. ${R}etc/init.d/rc.mc_defaults
+
+PX4_SIMULATOR=${PX4_SIMULATOR:=gz}
+PX4_GZ_WORLD=${PX4_GZ_WORLD:=WaterTakeOffPaola}
+PX4_SIM_MODEL=${PX4_SIM_MODEL:=USV_takeoff}
+
+param set-default SIM_GZ_EN 1
+param set-default SIM_GZ_HOME_LAT -33.72413
+param set-default  SIM_GZ_HOME_LON 150.67953
+
+param set-default SENS_EN_GPSSIM 1
+param set-default SENS_EN_BAROSIM 0
+param set-default SENS_EN_MAGSIM 1
+
+param set-default CA_AIRFRAME 0
+param set-default CA_ROTOR_COUNT 4
+
+param set-default CA_ROTOR0_PX 0.318
+param set-default CA_ROTOR0_PY 0.318
+param set-default CA_ROTOR0_KM  0.05
+
+param set-default CA_ROTOR1_PX -0.318
+param set-default CA_ROTOR1_PY -0.318
+param set-default CA_ROTOR1_KM  0.05
+
+param set-default CA_ROTOR2_PX 0.318
+param set-default CA_ROTOR2_PY -0.318
+param set-default CA_ROTOR2_KM -0.05
+
+param set-default CA_ROTOR3_PX -0.318
+param set-default CA_ROTOR3_PY 0.318
+param set-default CA_ROTOR3_KM -0.05
+
+param set-default SIM_GZ_EC_FUNC1 101
+param set-default SIM_GZ_EC_FUNC2 102
+param set-default SIM_GZ_EC_FUNC3 103
+param set-default SIM_GZ_EC_FUNC4 104
+param set-default SIM_GZ_SV_FUNC1 201
+param set-default SIM_GZ_SV_FUNC2 202
+
+param set-default SIM_GZ_EC_MIN1 150
+param set-default SIM_GZ_EC_MIN2 150
+param set-default SIM_GZ_EC_MIN3 150
+param set-default SIM_GZ_EC_MIN4 150
+
+param set-default SIM_GZ_EC_MAX1 3500
+param set-default SIM_GZ_EC_MAX2 3500
+param set-default SIM_GZ_EC_MAX3 3500
+param set-default SIM_GZ_EC_MAX4 3500
+
+param set-default  CA_SV_CS0_TRQ_Y 1000
+param set-default  CA_SV_CS1_TRQ_Y 1000
+
+# param set-default CA_SV_TL0_MAXA 2500
+# param set-default CA_SV_TL0_MINA -2500
+# param set-default CA_SV_TL1_MAXA 2500
+# param set-default CA_SV_TL1_MINA -2500
+
+param set-default MPC_THR_HOVER 0.60
+
+# Marine Navigation Parameters
+param set-default MARINE_KQ 4.0
+param set-default MARINE_KR 1.8
+param set-default MARINE_KT 3.0
+param set-default MARINE_KT_FF 5.0
+param set-default MARINE_LEAK 1.2
+param set-default MARINE_PROP_C 1.0
+param set-default MARINE_DRAG 1.90
+param set-default MARINE_MAX_SP 1.1
+param set-default MARINE_MAX_YAW 0.22
+param set-default MARINE_L_X -0.53
+param set-default MARINE_L_Y 0.3
+param set-default MARINE_R_X -0.53
+param set-default MARINE_R_Y -0.3

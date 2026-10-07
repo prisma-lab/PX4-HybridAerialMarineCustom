@@ -96,6 +96,7 @@ void MulticopterLandDetector::_update_topics()
 
 	if (_vehicle_control_mode_sub.update(&vehicle_control_mode)) {
 		_flag_control_climb_rate_enabled = vehicle_control_mode.flag_control_climb_rate_enabled;
+		_marine_takeoff_enabled = vehicle_control_mode.flag_control_marine_takeoff_enabled;
 	}
 
 	if (_params.useHoverThrustEstimate) {
@@ -270,6 +271,13 @@ bool MulticopterLandDetector::_get_ground_contact_state()
 	const bool skip_close_to_ground_check = !_dist_bottom_is_observable || !_vehicle_local_position.dist_bottom_valid;
 	_close_to_ground_or_skipped_check = _is_close_to_ground() || skip_close_to_ground_check;
 
+	// Relax wave-induced motion only in the new mode. Keep the original
+	// land detector behavior for every existing flight and marine mode.
+	if (_marine_takeoff_enabled) {
+		_horizontal_movement = false;
+		_vertical_movement = false;
+	}
+
 	// TODO: we need an accelerometer based check for vertical movement for flying without GPS
 	return !_armed ||
 	       (_close_to_ground_or_skipped_check && ground_contact
@@ -303,6 +311,10 @@ bool MulticopterLandDetector::_get_maybe_landed_state()
 	}
 
 	_rotational_movement = _angular_velocity.xy().norm() > max_rotation_threshold;
+
+	if (_marine_takeoff_enabled) {
+		_rotational_movement = false;
+	}
 
 	// If vertical velocity is available: ground contact, no thrust, no movement -> landed
 	const bool local_position_updated = (now - _vehicle_local_position.timestamp) < 1_s;

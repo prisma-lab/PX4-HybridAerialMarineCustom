@@ -38,6 +38,7 @@ uint8 NAVIGATION_STATE_AUTO_MISSION = 3         # Auto mission mode
 uint8 NAVIGATION_STATE_AUTO_LOITER = 4          # Auto loiter mode
 uint8 NAVIGATION_STATE_AUTO_RTL = 5             # Auto return to launch mode
 uint8 NAVIGATION_STATE_UNUSED3 = 8              # Free slot
+uint8 NAVIGATION_STATE_MARINE_TAKEOFF = 8        # Occupies a previously unused slot; existing modes retain their IDs
 uint8 NAVIGATION_STATE_UNUSED = 9               # Free slot
 uint8 NAVIGATION_STATE_ACRO = 10                # Acro mode
 uint8 NAVIGATION_STATE_UNUSED1 = 11             # Free slot
