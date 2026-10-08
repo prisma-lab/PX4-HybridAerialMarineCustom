@@ -83,6 +83,7 @@ uORB::Publication<offboard_control_mode_s> _offboard_control_mode_pub{ORB_ID(off
 
     void build_prediction_window();
     void check_window_validity();
+    bool takeoff_window_has_time_remaining(hrt_abstime now) const;
     // --- Constants and Memory Buffers ---
     static constexpr size_t FFT_SIZE = 5000;
     size_t _step_counter{FFT_SIZE};
@@ -126,6 +127,9 @@ uORB::Publication<offboard_control_mode_s> _offboard_control_mode_pub{ORB_ID(off
     bool _takeoff_triggered{false};       // trigger for takeoff
     bool _takeoff_completed{false};       // STOP la FFT d after takeoff
     bool _marine_prev{false};             //  reset
+    hrt_abstime _last_sample_time{0};
+    hrt_abstime _prediction_start_time{0};
+    hrt_abstime _takeoff_window_end_time{0};
     hrt_abstime _target_takeoff_time{0};   // takeoff time  saved
     hrt_abstime _snapshot_timestamp{0};
     hrt_abstime _current_snapshot_time{0};

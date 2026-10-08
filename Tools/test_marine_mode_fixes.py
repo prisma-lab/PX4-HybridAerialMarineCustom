@@ -50,6 +50,7 @@ struct MarineTakeoff {
     bool _is_sending_results = false, _was_window_valid = false, _is_window_duration_valid = false;
     int _total_samples = 0, _cycle_count = 0, _fft_idx = 0, _current_chunk_idx = 0, _valid_window_start_idx = -1;
     size_t _step_counter = FFT_SIZE;
+    uint64_t _last_sample_time = 0, _prediction_start_time = 0, _takeoff_window_end_time = 0;
     uint64_t _target_takeoff_time = 0, _snapshot_timestamp = 0, _current_snapshot_time = 0;
     float _buf_az[FFT_SIZE]{}, _buf_roll[FFT_SIZE]{}, _buf_pitch[FFT_SIZE]{}, _raw_wave_buf[FFT_SIZE]{};
     zoh_utils::ZOHProcessor _zoh_processor;
@@ -100,6 +101,8 @@ int main() {
     assert(module._buf_az[0] == .9f && module._buf_roll[0] == .3f && module._buf_pitch[0] == -.4f);
     assert(module._raw_wave_buf[0] == 0);
     module._total_samples = 400; module._cycle_count = 1; module._step_counter = 300;
+    module._last_sample_time = 1000; module._prediction_start_time = 5000;
+    module._takeoff_window_end_time = 20000;
     module._target_takeoff_time = 9000; module._current_snapshot_time = 123;
     module._valid_window_start_idx = 50; module._is_window_duration_valid = true;
     float held_value = 7;
@@ -111,6 +114,7 @@ int main() {
     assert(!module._marine_prev && perf_ends == 1);
     assert(module._total_samples == 0 && module._cycle_count == 0 && module._fft_idx == 0);
     assert(module._step_counter == module.FFT_SIZE && module._target_takeoff_time == 0);
+    assert(module._last_sample_time == 0 && module._prediction_start_time == 0 && module._takeoff_window_end_time == 0);
     assert(!module._is_window_duration_valid && module._valid_window_start_idx == -1);
     for (int i = 0; i < module.FFT_SIZE; ++i) {
         assert(module._buf_az[i] == 0 && module._buf_roll[i] == 0 && module._buf_pitch[i] == 0);

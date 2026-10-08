@@ -89,7 +89,12 @@ void MarineTakeoff::Run()
 
     // TAKEOFF
  if (_takeoff_triggered && !_takeoff_completed) {
-        if (hrt_absolute_time() >= _target_takeoff_time) {
+        const hrt_abstime now = hrt_absolute_time();
+        if (now >= _target_takeoff_time
+            && !takeoff_window_has_time_remaining(now)) {
+            _takeoff_triggered = false;
+            PX4_WARN("Marine Takeoff: window expired or insufficient time remaining");
+        } else if (now >= _target_takeoff_time) {
              PX4_WARN("Marine Takeoff: Takeoff start !");
 
              vehicle_command_s mode_cmd{};
@@ -130,7 +135,8 @@ void MarineTakeoff::Run()
         {_last_imu_status.mean_accel, _last_imu_status.timestamp, sizeof(_last_imu_status.mean_accel), imu_upd}
     };
 
-    if (_zoh_processor.process(streams, 2).updated) {
+    const auto synchronized = _zoh_processor.process(streams, 2);
+    if (synchronized.updated) {
         if (_cycle_count < _max_cycles) {
 
             if (_total_samples == 0) {
@@ -154,6 +160,10 @@ void MarineTakeoff::Run()
 
 
             _zoh_processor.bufferDataMulti(sources, targets, 3, _fft_idx, FFT_SIZE);
+            // Anchor the synchronized sample to its reference topic, not processing time.
+            _last_sample_time = synchronized.reference_index == 0 && _last_attitude.timestamp_sample != 0
+                                ? _last_attitude.timestamp_sample
+                                : streams[synchronized.reference_index].timestamp;
 
             // Increment total samples only until the buffer is filled for the first time
             if (_total_samples < (int)FFT_SIZE) {
@@ -189,6 +199,8 @@ void MarineTakeoff::Run()
 void MarineTakeoff::process_fft_and_snapshot()
 {
     _cycle_count++;
+    // predict_wave starts one nominal prediction step after the final measured sample.
+    _prediction_start_time = _last_sample_time == 0 ? 0 : _last_sample_time + 4000;
     for (size_t i = 0; i < FFT_SIZE; i++) {
         size_t circ_idx = (_fft_idx + i) % FFT_SIZE;
         work_buf[i] = _buf_az[circ_idx];
@@ -366,6 +378,9 @@ void MarineTakeoff::reset_module()
     _is_window_duration_valid = false;
     _valid_window_start_idx = -1;
     _target_takeoff_time = 0;
+    _last_sample_time = 0;
+    _prediction_start_time = 0;
+    _takeoff_window_end_time = 0;
     _snapshot_timestamp = 0;
     _current_snapshot_time = 0;
     _current_chunk_idx = 0;
@@ -445,55 +460,68 @@ void MarineTakeoff::build_prediction_window()
 }
 
 
+bool MarineTakeoff::takeoff_window_has_time_remaining(hrt_abstime now) const
+{
+    const float win_time = _param_win_time.get();
+    return PX4_ISFINITE(win_time) && win_time > 0.0f && _takeoff_window_end_time > now
+           && (double)(_takeoff_window_end_time - now) > (double)win_time * 1e6;
+}
+
 void MarineTakeoff::check_window_validity()
 {
-    constexpr float dt = 0.004f;
+    constexpr hrt_abstime prediction_step_us = 4000;
     const float win_time = _param_win_time.get();
-    const size_t  min_consecutive_steps = static_cast<size_t>(win_time / dt);
-    constexpr int sample_offset = 5000;
+    const hrt_abstime now = hrt_absolute_time();
 
     _is_window_duration_valid = false;
     _valid_window_start_idx = -1;
+    _takeoff_triggered = false;
+    _target_takeoff_time = 0;
+    _takeoff_window_end_time = 0;
 
-    if (FFT_SIZE < min_consecutive_steps) {
+    if (_prediction_start_time == 0 || !PX4_ISFINITE(win_time) || win_time <= 0.0f) {
+        _was_window_valid = false;
         return;
     }
 
-    for (size_t i = 0; i <= FFT_SIZE - min_consecutive_steps; i++) {
-        bool current_element_has_2s_good = true;
+    int run_start = -1;
 
-        for (size_t j = 0; j < min_consecutive_steps; j++) {
-            if (_final_takeoff_window[i + j] < 0.5f) {
-                current_element_has_2s_good = false;
-                i = i + j;
-                break;
-            }
+    for (size_t i = 0; i < FFT_SIZE; ++i) {
+        const hrt_abstime sample_time = _prediction_start_time + i * prediction_step_us;
+
+        // Discard elapsed predictions; late processing must not schedule a past window.
+        if (sample_time <= now || !PX4_ISFINITE(_final_takeoff_window[i])
+            || _final_takeoff_window[i] < 0.5f) {
+            run_start = -1;
+            continue;
         }
 
-        if (current_element_has_2s_good) {
+        if (run_start < 0) {
+            run_start = (int)i;
+        }
+
+        const hrt_abstime start_time = _prediction_start_time + run_start * prediction_step_us;
+        const double duration_us = (double)(sample_time - start_time);
+
+        // Use endpoint times and the strict thesis condition T_w > T_min.
+        if (duration_us > (double)win_time * 1e6) {
             _is_window_duration_valid = true;
-            _valid_window_start_idx = (int)i;
+            _valid_window_start_idx = run_start;
+            _target_takeoff_time = start_time;
+
+            // Retain the full endpoint of this favorable run for late-command validation.
+            size_t end = i;
+
+            while (end + 1 < FFT_SIZE && PX4_ISFINITE(_final_takeoff_window[end + 1])
+                   && _final_takeoff_window[end + 1] >= 0.5f) {
+                ++end;
+            }
+
+            _takeoff_window_end_time = _prediction_start_time + end * prediction_step_us;
+            _takeoff_triggered = !_takeoff_completed;
+            PX4_INFO("Marine Takeoff: window starts in %.3f s (sample index: %d)",
+                     (double)(_target_takeoff_time - now) / 1e6, run_start);
             break;
-        }
-    }
-
-
-    if (_is_window_duration_valid) {
-        float tempo_inizio_finestra = (float)_valid_window_start_idx * dt;
-
-        if (!_was_window_valid) {
-            int indice_allineato = _valid_window_start_idx + sample_offset;
-           PX4_INFO("Marine Takeoff: WINDOW DETECTED! start in  %.3f s (sample index: %d)", (double)tempo_inizio_finestra, indice_allineato);
-
-
-            _target_takeoff_time = hrt_absolute_time() + static_cast<hrt_abstime>(tempo_inizio_finestra * 1e6f);
-            _takeoff_triggered = true;
-        }
-    }
-    else if (!_is_window_duration_valid && _was_window_valid) {
-       // PX4_WARN("Marine Takeoff: NO WINDOW DETECTED .");
-        if (!_takeoff_completed) {
-            _takeoff_triggered = false;
         }
     }
 

@@ -94,3 +94,30 @@ Regression: `python3 Tools/test_marine_prediction.py` compiles the production
 functions with KISS FFT and checks analytical heave, acceleration DC removal,
 attitude bias and oscillation preservation, window rejection for tilted craft,
 and numerical agreement with the former integration route.
+
+### Prediction-window duration and command timing
+
+The prediction timeline now begins one nominal prediction step after the last
+synchronized sample's reference timestamp. Attitude uses `timestamp_sample` when
+available, with a fallback to its topic timestamp; IMU status exposes only its
+topic timestamp. Processing time no longer shifts the commanded start time.
+Acquisition and the existing FFT frequency assumptions remain unchanged.
+
+Window duration is the difference between the first and last favorable prediction
+timestamps, and must strictly exceed `MARINE_WIN_TIME`. This uses the prediction's
+existing 4-ms time grid, not the irregular acquisition spacing. Already elapsed
+predictions are discarded. Before publishing takeoff, the module verifies that
+the remaining favorable interval still strictly exceeds the configured duration;
+a late command with insufficient remaining time is canceled.
+
+Regression: `python3 Tools/test_marine_window_timing.py`, including exact-duration
+rejection, non-grid duration requirements, sample timestamp versus processing
+time, expired windows and late execution. No real sensor or controller delay
+measurement is implied by these deterministic tests.
+
+Historical filter rationale: thesis-branch commit `683db3e6c3` introduced the
+0.1–0.8 Hz prediction band with comments referring to typical marine-wave
+frequencies, and the coefficient threshold with an IMU-noise suppression comment.
+Those comments do not justify these numerical cutoffs quantitatively; the band
+comment mentions different limits. The shared predictor subsequently applies
+this selection to attitude too. These filters have not been changed.
