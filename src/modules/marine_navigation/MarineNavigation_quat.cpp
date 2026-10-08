@@ -269,9 +269,8 @@ void MarineNavigation::Run()
 	}
 	else if (vehicle_control_mode.flag_control_prisma_marine_manual_ff_enabled) {
 
-		if(fabs(rc_input.throttle) < 0.09f) control_input(0) = 0.0f;
-		if(fabs(rc_input.pitch) < 0.09f) control_input(1) = 0.0f;
-		else control_input = Vector2f(rc_input.throttle, rc_input.pitch);
+		control_input(0) = fabsf(rc_input.throttle) < 0.09f ? 0.0f : rc_input.throttle;
+		control_input(1) = fabsf(rc_input.pitch) < 0.09f ? 0.0f : rc_input.pitch;
 		
 		// UNCOMMENT FOR  LIVE INFO AND DEBUGGING
 		// PX4_INFO("Control Input - Left: %.2f, Right: %.2f", (double)control_input(0), (double)control_input(1));

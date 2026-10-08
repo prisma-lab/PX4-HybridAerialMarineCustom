@@ -8,6 +8,8 @@ Merge di `tesi_paola` nella base `firmware1.15mods`, con priorità al lavoro ori
 
 Il modulo `marine_navigation`, le missioni ibride, i relativi parametri, il mixer, il modello `USV_test` e l'airframe 4010 conservano il contenuto della base. Nei file condivisi sono aggiunti i raccordi per `marine_takeoff`: registrazione del modulo, messaggi, DDS, selezione della modalità e comportamento specifico del decollo marino. Le modifiche della tesista che avrebbero sostituito il comportamento delle modalità esistenti non sono applicate.
 
+Eccezione autorizzata dopo il merge: nella modalità Marine FF i due assi vengono aggiornati indipendentemente. Il precedente `else`, legato al solo pitch, lasciava il comando sinistro al valore precedente con pitch centrato e poteva annullare la zona morta del throttle. È l'unica correzione applicata al modulo originale di Andrea; missioni, mixer, parametri e altre modalità rimangono invariati.
+
 ## Identificativi
 
 | Identificativo | Branch integrato | Motivo |
@@ -42,10 +44,11 @@ source /workspace/px4-venv/bin/activate
 make px4_sitl_default -j5
 make tests TESTFILTER='.*' -j5
 python3 Tools/test_hybrid_merge.py
+python3 Tools/test_marine_mode_fixes.py
 ```
 
 - Compilazione SITL riuscita, inclusi `marine_navigation`, `marine_takeoff`, KissFFT e ZOH.
-- Test di regressione: 30 file originali identici byte per byte; 15.360 confronti dei flag di controllo per le modalità esistenti; identificativi, codici MAVLink e nomi originali conservati.
+- Test di regressione: 30 file originali verificati, ammettendo soltanto la correzione FF autorizzata; 15.360 confronti dei flag di controllo per le modalità esistenti; identificativi, codici MAVLink e nomi originali conservati.
 - Runtime con il target `px4_sitl_test` senza lockstep: entrambi i moduli avviati contemporaneamente, `marine_navigation` a 50 Hz e `marine_takeoff` a 250 Hz in stato inattivo; arresto regolare verificato. Nel target default il clock lockstep richiede un simulatore per avanzare.
 - XML del nuovo modello/mondo e YAML DDS validi; nessuna registrazione DDS duplicata.
 - Suite CTest: **134/137 passati**, tre fallimenti diagnosticati e lasciati visibili:
@@ -54,3 +57,10 @@ python3 Tools/test_hybrid_merge.py
   - `sitl-mavlink`: i casi negativi su `/bogus` ricevono EROFS sul filesystem cloud invece dell'ENOENT atteso.
 
 Gazebo, scambio DDS con ROS, decollo attivo e hardware non sono stati verificati in questo ambiente. Le verifiche di compilazione e regressione non sostituiscono queste prove.
+
+## Correzioni successive del controllo marino
+
+- Marine FF aggiorna sempre entrambi i comandi, ciascuno con la propria zona morta di 0.09. Il propulsore sinistro non dipende più dall'aggiornamento del pitch.
+- Marine Takeoff scrive accelerazione, roll e pitch nei rispettivi buffer. In precedenza il roll finiva nel buffer della ground truth, il pitch nel buffer del roll e il buffer del pitch non veniva alimentato.
+- Uscendo da Marine Takeoff viene azzerata anche un'acquisizione incompleta, senza attendere che il decollo sia già programmato. Sono cancellati deadline, finestre, campioni e stato ZOH; il contatore FFT è un membro dell'istanza che viene reinizializzato. Il modulo termina il ciclo subito quando la modalità è inattiva e usa una sola lettura dei flag per ciclo.
+- Il test `Tools/test_marine_mode_fixes.py` esegue i frammenti di produzione con l'implementazione ZOH reale: 36 combinazioni degli assi FF, aggiornamenti con pitch centrato, associazione dei buffer, uscita durante acquisizione, cancellazione di un decollo pendente e rientro nella modalità.

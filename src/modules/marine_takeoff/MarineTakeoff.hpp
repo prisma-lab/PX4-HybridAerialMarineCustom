@@ -82,6 +82,7 @@ uORB::Publication<offboard_control_mode_s> _offboard_control_mode_pub{ORB_ID(off
     void check_window_validity();
     // --- Constants and Memory Buffers ---
     static constexpr size_t FFT_SIZE = 5000;
+    size_t _step_counter{FFT_SIZE};
 
     // Circular buffers for data collection
     float _buf_az[FFT_SIZE]{};           // Vertical linear acceleration

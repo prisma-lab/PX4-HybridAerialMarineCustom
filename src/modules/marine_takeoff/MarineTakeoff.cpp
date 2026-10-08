@@ -59,10 +59,14 @@ void MarineTakeoff::Run()
 
     _vehicle_control_mode_sub.update(&_vehicle_control_mode);
     if (!_vehicle_control_mode.flag_control_marine_takeoff_enabled) {
-        if (_takeoff_completed || _takeoff_triggered) {
+        if (_marine_prev) {
             reset_module();
         }
+        _marine_prev = false;
+        perf_end(_loop_perf);
+        return;
     }
+    _marine_prev = true;
 
     if (_vehicle_control_mode.flag_control_marine_takeoff_enabled ) {
         if (!_armed) {
@@ -116,7 +120,6 @@ void MarineTakeoff::Run()
     const bool att_upd = _vehicle_attitude_sub.updated();
     const bool imu_upd = _vehicle_imu_status_sub.updated();
 
-    _vehicle_control_mode_sub.update(&_vehicle_control_mode);
     if(_vehicle_control_mode.flag_control_marine_takeoff_enabled ){
     if (att_upd) _vehicle_attitude_sub.copy(&_last_attitude);
     if (imu_upd) _vehicle_imu_status_sub.copy(&_last_imu_status);
@@ -147,7 +150,7 @@ void MarineTakeoff::Run()
             // ---  BUFFER ---
 
             const float * sources[] = { &acc_z_pure,  &current_roll, &current_pitch };
-            float* targets[] = { _buf_az, _raw_wave_buf, _buf_roll, _buf_pitch };
+            float* targets[] = { _buf_az, _buf_roll, _buf_pitch };
 
 
             _zoh_processor.bufferDataMulti(sources, targets, 3, _fft_idx, FFT_SIZE);
@@ -156,17 +159,16 @@ void MarineTakeoff::Run()
             if (_total_samples < (int)FFT_SIZE) {
             _total_samples++;}
 
-            static size_t step_counter = FFT_SIZE;
-            step_counter++;
+            _step_counter++;
 
             // 1. Check: the buffer is full
             if (_total_samples >= (int)FFT_SIZE) {
 
-                    if (step_counter >= FFT_SIZE) {
+                    if (_step_counter >= FFT_SIZE) {
                         _current_snapshot_time= hrt_absolute_time();
                         process_fft_and_snapshot();
                         // Reset counter
-                        step_counter = 0;
+                        _step_counter = 0;
 
 
                         //PX4_INFO("FFT cycle number  %d", _cycle_count);
@@ -352,6 +354,14 @@ void MarineTakeoff::reset_module()
     _is_sending_results = false;
     _was_window_valid = false;
     _fft_idx = 0;
+    _step_counter = FFT_SIZE;
+    _zoh_processor.reset();
+    _is_window_duration_valid = false;
+    _valid_window_start_idx = -1;
+    _target_takeoff_time = 0;
+    _snapshot_timestamp = 0;
+    _current_snapshot_time = 0;
+    _current_chunk_idx = 0;
 
     // clear buffer
     memset(_buf_az, 0, sizeof(_buf_az));
