@@ -80,3 +80,17 @@ the Auto Marine source exemption. CLI, MAVLink, RC and mode-executor requests
 use the same rule, including forced requests and replacement modes.
 
 Regression: `python3 Tools/test_marine_mode_admission.py`.
+
+### Spectral prediction aligned with thesis chapter 7
+
+Future vertical displacement is reconstructed directly from the combined
+acceleration spectrum, multiplying each selected harmonic by `-1/omega^2`.
+The intermediate future-acceleration reconstruction, FFT and IFFT are removed.
+Roll and pitch retain their signed DC term (`FFT[0].real / FFT_SIZE`); only
+acceleration DC is excluded from the integrated prediction. Existing spectral
+selection, acquisition, window duration and command timing remain unchanged.
+
+Regression: `python3 Tools/test_marine_prediction.py` compiles the production
+functions with KISS FFT and checks analytical heave, acceleration DC removal,
+attitude bias and oscillation preservation, window rejection for tilted craft,
+and numerical agreement with the former integration route.

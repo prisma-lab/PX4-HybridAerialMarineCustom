@@ -228,8 +228,7 @@ void MarineTakeoff::process_fft_and_snapshot()
     memcpy(_prediction_old, _prediction_send, sizeof(_prediction_old));
 
     // HEAVE MOTION  prediction
-    predict_wave(work_buf, FFT_SIZE,_fft_accel_copy);
-    double_int(work_buf, _prediction_send, true, false);
+    predict_wave(_prediction_send, FFT_SIZE, _fft_accel_copy, true);
 
     // ROLL  Prediction
 
@@ -304,7 +303,8 @@ void MarineTakeoff::double_int(float* input_time_buf, float* output_time_buf, bo
     }
 }
 
-void MarineTakeoff::predict_wave(float* prediction_buf, int prediction_samples, kiss_fft_cpx* fft_source)
+void MarineTakeoff::predict_wave(float* prediction_buf, int prediction_samples, const kiss_fft_cpx* fft_source,
+                                bool integrate_acceleration)
 {
     const float Fs = 250.0f;
     const float dt = 1.0f / Fs;
@@ -312,7 +312,9 @@ void MarineTakeoff::predict_wave(float* prediction_buf, int prediction_samples, 
     const float norm = 2.0f / (float)FFT_SIZE;
     const float T_to_last_sample = (float)(FFT_SIZE - 1) * dt;
 
-    memset(prediction_buf, 0, prediction_samples * sizeof(float));
+    // Only acceleration excludes DC. Attitude retains its mean angle.
+    const float mean = integrate_acceleration ? 0.0f : fft_source[0].r / (float)FFT_SIZE;
+    std::fill_n(prediction_buf, prediction_samples, mean);
 
     for (int k = 1; k < (int)(FFT_SIZE / 2); k++) {
         float freq = k * df;
@@ -327,6 +329,11 @@ void MarineTakeoff::predict_wave(float* prediction_buf, int prediction_samples, 
             if (mag_sq > 0.1f) {
                 float amplitude = sqrtf(mag_sq) * norm;
                 float omega = 2.0f * M_PI_F * freq;
+
+                if (integrate_acceleration) {
+                    // H(k) = A(k) / (j * omega)^2: reconstruct future displacement directly.
+                    amplitude *= -1.0f / (omega * omega);
+                }
 
                 float phase_start = atan2f(imag, real);
                 float phase_now = phase_start + (omega * T_to_last_sample);

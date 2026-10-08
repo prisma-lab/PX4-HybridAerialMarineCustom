@@ -72,10 +72,13 @@ uORB::Publication<offboard_control_mode_s> _offboard_control_mode_pub{ORB_ID(off
     void double_int(float* input_time_buf, float* output_time_buf, bool apply_integration, bool is_real_data);
 
     /**
-     * @brief Predicts future acceleration based on stored FFT coefficients.
+     * @brief Reconstructs future attitude or directly integrated vertical displacement.
+     * @param integrate_acceleration Integrate spectral acceleration twice and exclude DC;
+     * otherwise retain the mean attitude without integration.
      */
     // Aggiungi kiss_fft_cpx* fft_source
-    void predict_wave(float* prediction_buf, int prediction_samples, kiss_fft_cpx* fft_source);
+    void predict_wave(float* prediction_buf, int prediction_samples, const kiss_fft_cpx* fft_source,
+                      bool integrate_acceleration = false);
     void reset_module();
 
     void build_prediction_window();
