@@ -23,11 +23,13 @@ public:
  static constexpr int FFT_SIZE=5000;
  kiss_fftr_cfg _fft_cfg=kiss_fftr_alloc(FFT_SIZE,0,nullptr,nullptr);
  kiss_fftr_cfg _fft_inv_cfg=kiss_fftr_alloc(FFT_SIZE,1,nullptr,nullptr);
+ kiss_fftr_cfg _fft_inv_cfg_att=kiss_fftr_alloc(FFT_SIZE,1,nullptr,nullptr);
  kiss_fft_cpx _fft_out[2501]{},_fft_accel_copy[2501]{};
  float _pred_roll_out[FFT_SIZE]{},_pred_pitch_out[FFT_SIZE]{},_prediction_send[FFT_SIZE]{},_final_takeoff_window[FFT_SIZE]{};
  struct {float get(){return .069f;}} _param_att_threshold;
  void double_int(float*,float*,bool,bool);
- void predict_wave(float*,int,const kiss_fft_cpx*,bool=false);
+ void predict_heave(float*,const kiss_fft_cpx*);
+ void predict_attitude(float*,const kiss_fft_cpx*);
  void build_prediction_window();
 };
 FUNCTIONS
@@ -40,7 +42,7 @@ int main(){
  for(float mean: {-.2f,.2f}) {
   for(auto &v:input)v=mean;
   kiss_fftr(m._fft_cfg,input,m._fft_out);
-  m.predict_wave(m._pred_roll_out,5000,m._fft_out);
+  m.predict_attitude(m._pred_roll_out,m._fft_out);
   for(auto v:m._pred_roll_out)assert(fabsf(v-mean)<1e-5f);
   for(auto &v:m._prediction_send)v=-.1f;
   m.build_prediction_window();
@@ -48,16 +50,37 @@ int main(){
  }
  for(int i=0;i<5000;i++)input[i]=.2f+.04f*cosf(omega*i/250.f);
  kiss_fftr(m._fft_cfg,input,m._fft_out);
- m.predict_wave(output,5000,m._fft_out);
+ m.predict_attitude(output,m._fft_out);
  for(int i=0;i<5000;i++)assert(fabsf(output[i]-(.2f+.04f*cosf(omega*(20.f+i/250.f))))<1e-4f);
  for(int i=0;i<5000;i++)input[i]=1.f-omega*omega*.2f*cosf(omega*i/250.f);
  kiss_fftr(m._fft_cfg,input,m._fft_accel_copy);
- m.predict_wave(output,5000,m._fft_accel_copy,true);
+ m.predict_heave(output,m._fft_accel_copy);
  for(int i=0;i<5000;i++)assert(fabsf(output[i]-.2f*cosf(omega*(20.f+i/250.f)))<5e-4f);
  for(auto &v:input)v=1.f;
  kiss_fftr(m._fft_cfg,input,m._fft_accel_copy);
- m.predict_wave(output,5000,m._fft_accel_copy,true);
+ m.predict_heave(output,m._fft_accel_copy);
  for(auto v:output)assert(fabsf(v)<1e-6f);
+ // Full-spectrum attitude retains slow, fast, weak and Nyquist components.
+ for(double frequency: {.05,.25,1.,5.,125.}) {
+  for(int i=0;i<5000;i++)input[i]=.02f+.1f*std::cos(2*std::acos(-1.)*frequency*i/250.);
+  kiss_fftr(m._fft_cfg,input,m._fft_out);
+  m.predict_attitude(m._pred_roll_out,m._fft_out);
+  m.predict_attitude(m._pred_pitch_out,m._fft_out);
+  for(int i=0;i<5000;i++) {
+   assert(fabsf(m._pred_roll_out[i]-input[i])<1e-6f);
+   assert(fabsf(m._pred_pitch_out[i]-input[i])<1e-6f);
+   m._prediction_send[i]=-.1f;
+  }
+  m.build_prediction_window();
+  for(int i=0;i<5000;i++) {
+   if(fabsf(input[i])>.0691f)assert(m._final_takeoff_window[i]==0.f);
+   if(fabsf(input[i])<.0689f)assert(m._final_takeoff_window[i]==1.f);
+  }
+ }
+ for(int i=0;i<5000;i++)input[i]=.00001f*std::cos(2*std::acos(-1.)*.05*i/250.);
+ kiss_fftr(m._fft_cfg,input,m._fft_out);
+ m.predict_attitude(output,m._fft_out);
+ for(int i=0;i<5000;i++)assert(fabsf(output[i]-input[i])<1e-9f);
  // Compare direct spectral integration against the former time-domain round trip.
  for(int trial=0;trial<8;trial++) {
   memset(m._fft_accel_copy,0,sizeof(m._fft_accel_copy));
@@ -71,9 +94,17 @@ int main(){
   m._fft_accel_copy[1].r=100.f;
   m._fft_accel_copy[20].r=100.f;
   m._fft_accel_copy[8]={.1f,0.f};
-  m.predict_wave(output,5000,m._fft_accel_copy,true);
+  m.predict_heave(output,m._fft_accel_copy);
   m._fft_accel_copy[0].r=0.f;
-  m.predict_wave(temporary,5000,m._fft_accel_copy,false);
+  // Independent reference: retain the original acceleration selection, IFFT,
+  // then integrate in the frequency domain via the former time-domain path.
+  kiss_fft_cpx filtered[2501]{};
+  for(int k=2;k<=16;k++) {
+   auto bin=m._fft_accel_copy[k];
+   if(bin.r*bin.r+bin.i*bin.i>.1f)filtered[k]=bin;
+  }
+  kiss_fftri(m._fft_inv_cfg,filtered,temporary);
+  for(auto &value:temporary)value/=5000.f;
   m.double_int(temporary,reference,true,false);
   float error=0;
   for(int i=0;i<5000;i++)error=fmaxf(error,fabsf(output[i]-reference[i]));
@@ -81,10 +112,10 @@ int main(){
   // Allow the numerical phase drift already present in the former round trip.
   assert(error<1e-4f);
  }
- printf("PASS: direct spectral heave matches previous integration; acceleration DC excluded; signed attitude means retained; bias rejects false flat windows; oscillation plus mean preserved.\n");
+ printf("PASS: direct spectral heave matches previous integration; acceleration DC excluded; signed attitude means retained; bias rejects false flat windows; oscillation plus mean preserved; slow, fast, weak and Nyquist attitude components retained with correct takeoff windows.\n");
 }
 
-'''.replace('FUNCTIONS','\n'.join(function(x) for x in ('double_int','predict_wave','build_prediction_window')))
+'''.replace('FUNCTIONS','\n'.join(function(x) for x in ('double_int','predict_heave','predict_attitude','build_prediction_window')))
 import tempfile
 workspace=tempfile.TemporaryDirectory()
 p=Path(workspace.name);(p/'check.cpp').write_text(code)

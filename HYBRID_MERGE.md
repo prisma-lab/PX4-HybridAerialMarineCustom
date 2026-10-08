@@ -121,3 +121,23 @@ frequencies, and the coefficient threshold with an IMU-noise suppression comment
 Those comments do not justify these numerical cutoffs quantitatively; the band
 comment mentions different limits. The shared predictor subsequently applies
 this selection to attitude too. These filters have not been changed.
+
+### Separate attitude prediction from the heave filters
+
+`predict_attitude` reconstructs the next FFT_SIZE samples from the entire real
+spectrum, including DC, Nyquist, slow/fast motion and weak coefficients. For
+DFT-bin frequencies and a future interval beginning at N/Fs, a normalized IFFT
+is exactly the harmonic continuation: each component advances by 2*pi*k. This
+avoids a full harmonic summation at every sample. It remains a periodic DFT
+forecast, not a new motion or noise model.
+
+`predict_heave` retains the existing acceleration band (0.1–0.8 Hz), coefficient
+threshold and direct spectral double integration. Acquisition, prediction grid,
+window logic and command timing are unchanged by this update. No new heave band
+or sensor-noise threshold is chosen without recorded data.
+
+`Tools/test_marine_prediction.py` now exercises both roll and pitch at 0.05,
+0.25, 1, 5 and 125 Hz, including DC offsets, weak signals and takeoff-window
+classification. These synthetic discrete-time tests use the production
+functions and real KISS FFT; they do not validate physical sampling, noise,
+future sea-state changes or a full water takeoff.
