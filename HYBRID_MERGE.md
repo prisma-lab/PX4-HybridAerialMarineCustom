@@ -141,3 +141,32 @@ or sensor-noise threshold is chosen without recorded data.
 classification. These synthetic discrete-time tests use the production
 functions and real KISS FFT; they do not validate physical sampling, noise,
 future sea-state changes or a full water takeoff.
+
+### Takeoff progress and command diagnostics
+
+Marine Takeoff now reports activation, recording progress every two seconds,
+completion of each buffer, prediction success/failure, one-second countdowns,
+command publication, acknowledgement/rejection, and confirmed AUTO TAKEOFF state.
+No-window diagnostics include mean roll/pitch, flat/heave/combined sample counts,
+and the longest combined interval. Missing/stale input updates, unarmed vehicles,
+expired windows, publication errors, transition timeouts, and exhaustion of the
+three prediction cycles are explicit. The attempt limit remains unchanged;
+leaving and re-entering the mode resets it. Arming requests are limited to one
+per second rather than being repeated at every 250-Hz iteration.
+
+Scheduling reserves 20 ms of lead time and extra favorable duration for work-queue
+jitter. This avoids scheduling a barely-valid interval that becomes invalid after
+one dispatch period. The original strict remaining-duration check is retained;
+this margin is not a guarantee against arbitrary delays. A published mode command
+is no longer treated as completed: the module waits for vehicle_status AUTO TAKEOFF,
+reports matching command ACKs, and resumes its attempt after rejection/timeout.
+The spectrum and attitude thresholds are not relaxed to force a takeoff.
+
+`Tools/test_marine_takeoff_sequence.py` compiles production FFT, window, command
+and reporting functions with real KISS FFT and mocked uORB. It exercises a full
+synthetic recording-to-command path, delayed dispatch, no-window tilted motion,
+ACK without mode confirmation, rejection/timeout, disarmed/expired cancellation,
+publication failure, countdown cadence and cycle exhaustion. This establishes
+those code paths; the reported failure on the user's vehicle remains dependent
+on its measurements and logs. A message saying only "Sample acquisition" from
+the previous version does not identify the failure stage.

@@ -54,6 +54,11 @@ void MarineTakeoff::Run()
         vehicle_status_s vehicle_status;
         if (_vehicle_status_sub.copy(&vehicle_status)) {
             _armed = (vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED);
+
+            if (_takeoff_command_sent && !_takeoff_completed && vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF) {
+                _takeoff_completed = true;
+                PX4_INFO("Marine Takeoff: AUTO TAKEOFF active; aerial controllers executing maneuver");
+            }
         }
     }
 
@@ -66,62 +71,40 @@ void MarineTakeoff::Run()
         perf_end(_loop_perf);
         return;
     }
-    _marine_prev = true;
-
-    if (_vehicle_control_mode.flag_control_marine_takeoff_enabled ) {
-        if (!_armed) {
-        vehicle_command_s cmd{};
-        cmd.timestamp = hrt_absolute_time();
-        cmd.command = vehicle_command_s::VEHICLE_CMD_COMPONENT_ARM_DISARM;
-        cmd.param1 = 1.0f;
-        cmd.target_system = 1; cmd.target_component = 1;
-        _vehicle_command_pub.publish(cmd);
-
-
-
-
-     }
-
+    if (!_marine_prev) {
+        PX4_INFO("Marine Takeoff: recording cycle 1/%d started (%d samples; nominal 20 s)",
+                 _max_cycles, (int)FFT_SIZE);
+        PX4_INFO("Marine Takeoff: attitude limit %.2f deg; required favorable duration > %.3f s",
+                 (double)_param_att_threshold.get() * 180.0 / (double)M_PI_F, (double)_param_win_time.get());
     }
 
+    _marine_prev = true;
+    const hrt_abstime now = hrt_absolute_time();
+    report_progress(now);
 
+    if (!_armed && (_last_arm_request == 0 || now - _last_arm_request >= 1000000)) {
+        vehicle_command_s cmd{};
+        cmd.timestamp = now;
+        cmd.command = vehicle_command_s::VEHICLE_CMD_COMPONENT_ARM_DISARM;
+        cmd.param1 = 1.0f;
+        cmd.target_system = 1;
+        cmd.target_component = 1;
+        cmd.source_system = 1;
+        cmd.source_component = 1;
+        const bool published = _vehicle_command_pub.publish(cmd);
+        _last_arm_request = now;
 
+        if (published) {
+            PX4_INFO("Marine Takeoff: waiting for arming; ARM request sent");
 
-    // TAKEOFF
- if (_takeoff_triggered && !_takeoff_completed) {
-        const hrt_abstime now = hrt_absolute_time();
-        if (now >= _target_takeoff_time
-            && !takeoff_window_has_time_remaining(now)) {
-            _takeoff_triggered = false;
-            PX4_WARN("Marine Takeoff: window expired or insufficient time remaining");
-        } else if (now >= _target_takeoff_time) {
-             PX4_WARN("Marine Takeoff: Takeoff start !");
+        } else {
+            PX4_ERR("Marine Takeoff: failed to publish ARM request");
+        }
+    }
 
-             vehicle_command_s mode_cmd{};
-             mode_cmd.timestamp = hrt_absolute_time();
-             mode_cmd.command = vehicle_command_s::VEHICLE_CMD_DO_SET_MODE;
+    update_takeoff_command(now);
 
-             mode_cmd.param1 = 1.0f;
-             mode_cmd.param2 = 4.0f;
-             mode_cmd.param3 = 2.0f;
-
-             mode_cmd.target_system = 1;
-             mode_cmd.target_component = 1;
-             mode_cmd.source_system = 1;
-             mode_cmd.source_component = 1;
-             mode_cmd.from_external = false;
-
-             if (_vehicle_command_pub.publish(mode_cmd)) {
-                 _takeoff_completed = true; // stop fft
-                 //PX4_INFO("Sent TAKEOFF  command. stop FFT .");
-             } else {
-                 PX4_ERR(" Error takoff not sent");
-             }
-         }
-     }
-
-
-    if (!_takeoff_completed){
+    if (!_takeoff_completed && !_takeoff_command_sent) {
     const bool att_upd = _vehicle_attitude_sub.updated();
     const bool imu_upd = _vehicle_imu_status_sub.updated();
 
@@ -138,10 +121,6 @@ void MarineTakeoff::Run()
     const auto synchronized = _zoh_processor.process(streams, 2);
     if (synchronized.updated) {
         if (_cycle_count < _max_cycles) {
-
-            if (_total_samples == 0) {
-                PX4_INFO("Sample acquisition ...");
-            }
 
             //  Transform acceleration into the world frame
             Quatf q(_last_attitude.q);
@@ -199,6 +178,7 @@ void MarineTakeoff::Run()
 void MarineTakeoff::process_fft_and_snapshot()
 {
     _cycle_count++;
+    PX4_INFO("Marine Takeoff: recording complete; calculating prediction %d/%d", _cycle_count, _max_cycles);
     // Both predictions start one nominal step after the final measured sample.
     _prediction_start_time = _last_sample_time == 0 ? 0 : _last_sample_time + 4000;
     for (size_t i = 0; i < FFT_SIZE; i++) {
@@ -261,16 +241,39 @@ void MarineTakeoff::process_fft_and_snapshot()
     check_window_validity();
 
 
-    // Debug
-    int window_count = 0;
-    for(size_t i = 0; i < FFT_SIZE; i++) {
-        if(_final_takeoff_window[i] > 0.5f) window_count++;
+    PX4_INFO("Marine Takeoff: prediction processing %.1f ms; sample-to-decision age %.1f ms",
+             (double)(hrt_absolute_time() - _current_snapshot_time) / 1000.0,
+             _last_sample_time > 0 && hrt_absolute_time() >= _last_sample_time
+             ? (double)(hrt_absolute_time() - _last_sample_time) / 1000.0 : 0.0);
+
+    if (!_takeoff_triggered) {
+        size_t flat_count = 0, heave_count = 0, combined_count = 0;
+        size_t consecutive = 0, longest = 0;
+
+        for (size_t i = 0; i < FFT_SIZE; ++i) {
+            flat_count += fabsf(_pred_roll_out[i]) < _param_att_threshold.get()
+                          && fabsf(_pred_pitch_out[i]) < _param_att_threshold.get();
+            heave_count += _prediction_send[i] < 0.0f;
+            const bool good = _final_takeoff_window[i] > 0.5f;
+            combined_count += good;
+            consecutive = good ? consecutive + 1 : 0;
+            longest = std::max(longest, consecutive);
+        }
+
+        PX4_WARN("Marine Takeoff: prediction %d/%d found NO schedulable takeoff instant", _cycle_count, _max_cycles);
+        PX4_INFO("Marine Takeoff: mean roll %.2f deg, mean pitch %.2f deg",
+                 (double)(_fft_roll[0].r / (float)FFT_SIZE) * 180.0 / (double)M_PI_F,
+                 (double)(_fft_pitch[0].r / (float)FFT_SIZE) * 180.0 / (double)M_PI_F);
+        PX4_INFO("Marine Takeoff: flat %d/%d, favorable heave %d/%d, combined %d/%d",
+                 (int)flat_count, (int)FFT_SIZE, (int)heave_count, (int)FFT_SIZE,
+                 (int)combined_count, (int)FFT_SIZE);
+        PX4_INFO("Marine Takeoff: longest combined interval %.3f s; required > %.3f s plus scheduling margin",
+                 longest > 0 ? (double)(longest - 1) * 0.004 : 0.0, (double)_param_win_time.get());
     }
-    if(window_count > 0) {
-        PX4_INFO("Square Wave sample: %d good sample  %d", window_count, (int)FFT_SIZE);
-}
 
-
+    if (_cycle_count < _max_cycles) {
+        PX4_INFO("Marine Takeoff: continuing recording cycle %d/%d", _cycle_count + 1, _max_cycles);
+    }
 
     _is_sending_results = true;
     _current_chunk_idx = 0;
@@ -387,6 +390,13 @@ void MarineTakeoff::reset_module()
     _is_window_duration_valid = false;
     _valid_window_start_idx = -1;
     _target_takeoff_time = 0;
+    _takeoff_command_sent = false;
+    _takeoff_acknowledged = false;
+    _max_cycles_reported = false;
+    _takeoff_command_timestamp = 0;
+    _last_progress_print = 0;
+    _last_countdown_print = 0;
+    _last_arm_request = 0;
     _last_sample_time = 0;
     _prediction_start_time = 0;
     _takeoff_window_end_time = 0;
@@ -399,7 +409,7 @@ void MarineTakeoff::reset_module()
     memset(_buf_roll, 0, sizeof(_buf_roll));
     memset(_buf_pitch, 0, sizeof(_buf_pitch));
 
-    PX4_INFO("reset module.Ready again .");
+    PX4_INFO("Marine Takeoff: mode exited; recording and scheduled command cleared");
 }
 void MarineTakeoff::SendChunks()
 {
@@ -469,6 +479,133 @@ void MarineTakeoff::build_prediction_window()
 }
 
 
+void MarineTakeoff::report_progress(hrt_abstime now)
+{
+    if (_cycle_count >= _max_cycles && !_takeoff_triggered && !_takeoff_command_sent) {
+        if (!_max_cycles_reported) {
+            PX4_WARN("Marine Takeoff: all %d prediction cycles exhausted; NO takeoff scheduled", _max_cycles);
+            PX4_WARN("Marine Takeoff: leave and re-enter the mode to record a new attempt");
+            _max_cycles_reported = true;
+        }
+
+        return;
+    }
+
+    if (!_takeoff_command_sent && _cycle_count < _max_cycles
+        && (_last_progress_print == 0 || now - _last_progress_print >= 2000000)) {
+        const int samples = _total_samples < (int)FFT_SIZE ? _total_samples : (int)_step_counter;
+        PX4_INFO("Marine Takeoff: recording cycle %d/%d: %d/%d samples (%.1f%%)",
+                 _cycle_count + 1, _max_cycles, samples, (int)FFT_SIZE,
+                 100.0 * (double)samples / (double)FFT_SIZE);
+        if (_last_sample_time == 0) {
+            PX4_WARN("Marine Takeoff: waiting for attitude/IMU updates; no samples recorded yet");
+
+        } else if (now > _last_sample_time && now - _last_sample_time > 1000000) {
+            PX4_WARN("Marine Takeoff: latest sample is %.2f s old; check attitude/IMU topic updates",
+                     (double)(now - _last_sample_time) / 1e6);
+        }
+
+        _last_progress_print = now;
+    }
+}
+
+void MarineTakeoff::update_takeoff_command(hrt_abstime now)
+{
+    vehicle_command_ack_s ack{};
+
+    while (_vehicle_command_ack_sub.update(&ack)) {
+        if (ack.target_system != 1 || ack.target_component != 1) {
+            continue;
+        }
+
+        if (ack.command == vehicle_command_s::VEHICLE_CMD_COMPONENT_ARM_DISARM
+            && ack.timestamp >= _last_arm_request && _last_arm_request != 0
+            && ack.result != vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED
+            && ack.result != vehicle_command_ack_s::VEHICLE_CMD_RESULT_IN_PROGRESS) {
+            PX4_WARN("Marine Takeoff: ARM request rejected (result %u)", (unsigned)ack.result);
+        }
+
+        if (!_takeoff_command_sent || ack.command != vehicle_command_s::VEHICLE_CMD_DO_SET_MODE
+            || ack.timestamp < _takeoff_command_timestamp) {
+            continue;
+        }
+
+        if (ack.result == vehicle_command_ack_s::VEHICLE_CMD_RESULT_ACCEPTED
+            || ack.result == vehicle_command_ack_s::VEHICLE_CMD_RESULT_IN_PROGRESS) {
+            if (!_takeoff_acknowledged) {
+                PX4_INFO("Marine Takeoff: takeoff request acknowledged (result %u); awaiting AUTO TAKEOFF state",
+                         (unsigned)ack.result);
+                _takeoff_acknowledged = true;
+            }
+
+        } else {
+            PX4_ERR("Marine Takeoff: AUTO TAKEOFF request rejected (result %u); no transition confirmed",
+                    (unsigned)ack.result);
+            _takeoff_command_sent = false;
+            _takeoff_triggered = false;
+        }
+    }
+
+    if (!_takeoff_triggered || _takeoff_completed) {
+        return;
+    }
+
+    if (_takeoff_command_sent) {
+        if (now - _takeoff_command_timestamp >= 2000000) {
+            PX4_ERR("Marine Takeoff: AUTO TAKEOFF transition not confirmed after 2 s");
+            _takeoff_command_sent = false;
+            _takeoff_triggered = false;
+        }
+
+        return;
+    }
+
+    if (now < _target_takeoff_time) {
+        if (_last_countdown_print == 0 || now - _last_countdown_print >= 1000000) {
+            PX4_INFO("Marine Takeoff: takeoff command in %.2f s",
+                     (double)(_target_takeoff_time - now) / 1e6);
+            _last_countdown_print = now;
+        }
+
+        return;
+    }
+
+    if (!_armed) {
+        PX4_WARN("Marine Takeoff: scheduled command canceled; vehicle is not armed");
+        _takeoff_triggered = false;
+        return;
+    }
+
+    if (!takeoff_window_has_time_remaining(now)) {
+        PX4_WARN("Marine Takeoff: scheduled command canceled; favorable interval too short or expired");
+        _takeoff_triggered = false;
+        return;
+    }
+
+    vehicle_command_s cmd{};
+    cmd.timestamp = now;
+    cmd.command = vehicle_command_s::VEHICLE_CMD_DO_SET_MODE;
+    cmd.param1 = 1.0f;
+    cmd.param2 = 4.0f;
+    cmd.param3 = 2.0f;
+    cmd.target_system = 1;
+    cmd.target_component = 1;
+    cmd.source_system = 1;
+    cmd.source_component = 1;
+    cmd.from_external = false;
+
+    if (_vehicle_command_pub.publish(cmd)) {
+        _takeoff_command_sent = true;
+        _takeoff_acknowledged = false;
+        _takeoff_command_timestamp = now;
+        PX4_INFO("Marine Takeoff: takeoff command SENT; awaiting acceptance and mode transition");
+
+    } else {
+        PX4_ERR("Marine Takeoff: failed to publish takeoff command");
+        _takeoff_triggered = false;
+    }
+}
+
 bool MarineTakeoff::takeoff_window_has_time_remaining(hrt_abstime now) const
 {
     const float win_time = _param_win_time.get();
@@ -479,6 +616,8 @@ bool MarineTakeoff::takeoff_window_has_time_remaining(hrt_abstime now) const
 void MarineTakeoff::check_window_validity()
 {
     constexpr hrt_abstime prediction_step_us = 4000;
+    // Reserve five work-queue periods for logging and normal dispatch jitter.
+    constexpr hrt_abstime scheduling_margin_us = 20000;
     const float win_time = _param_win_time.get();
     const hrt_abstime now = hrt_absolute_time();
 
@@ -499,7 +638,7 @@ void MarineTakeoff::check_window_validity()
         const hrt_abstime sample_time = _prediction_start_time + i * prediction_step_us;
 
         // Discard elapsed predictions; late processing must not schedule a past window.
-        if (sample_time <= now || !PX4_ISFINITE(_final_takeoff_window[i])
+        if (sample_time < now + scheduling_margin_us || !PX4_ISFINITE(_final_takeoff_window[i])
             || _final_takeoff_window[i] < 0.5f) {
             run_start = -1;
             continue;
@@ -513,7 +652,7 @@ void MarineTakeoff::check_window_validity()
         const double duration_us = (double)(sample_time - start_time);
 
         // Use endpoint times and the strict thesis condition T_w > T_min.
-        if (duration_us > (double)win_time * 1e6) {
+        if (duration_us > (double)win_time * 1e6 + scheduling_margin_us) {
             _is_window_duration_valid = true;
             _valid_window_start_idx = run_start;
             _target_takeoff_time = start_time;
@@ -528,8 +667,11 @@ void MarineTakeoff::check_window_validity()
 
             _takeoff_window_end_time = _prediction_start_time + end * prediction_step_us;
             _takeoff_triggered = !_takeoff_completed;
-            PX4_INFO("Marine Takeoff: window starts in %.3f s (sample index: %d)",
-                     (double)(_target_takeoff_time - now) / 1e6, run_start);
+            _last_countdown_print = now;
+            PX4_INFO("Marine Takeoff: prediction SUCCESS; takeoff command in %.3f s",
+                     (double)(_target_takeoff_time - now) / 1e6);
+            PX4_INFO("Marine Takeoff: scheduled favorable interval %.3f s; required > %.3f s",
+                     (double)(_takeoff_window_end_time - _target_takeoff_time) / 1e6, (double)win_time);
             break;
         }
     }
@@ -562,8 +704,16 @@ int MarineTakeoff::task_spawn(int argc, char *argv[])
 
 int MarineTakeoff::print_status()
 {
-    PX4_INFO("FFT completed: %d", _cycle_count);
-    PX4_INFO("current sample : %d / %d", _total_samples, (int)FFT_SIZE);
+    PX4_INFO("Marine Takeoff: active %s; armed %s; predictions %d/%d",
+             _marine_prev ? "yes" : "no", _armed ? "yes" : "no", _cycle_count, _max_cycles);
+    PX4_INFO("Marine Takeoff: recorded samples %d/%d; command pending %s; AUTO TAKEOFF confirmed %s",
+             _total_samples, (int)FFT_SIZE, _takeoff_command_sent ? "yes" : "no", _takeoff_completed ? "yes" : "no");
+
+    if (_takeoff_triggered && !_takeoff_command_sent && !_takeoff_completed) {
+        const hrt_abstime now = hrt_absolute_time();
+        PX4_INFO("Marine Takeoff: takeoff command in %.3f s",
+                 _target_takeoff_time > now ? (double)(_target_takeoff_time - now) / 1e6 : 0.0);
+    }
 
     perf_print_counter(_loop_perf);
     perf_print_counter(_loop_interval_perf);

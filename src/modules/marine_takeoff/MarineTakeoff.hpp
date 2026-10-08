@@ -18,6 +18,7 @@
 #include <uORB/SubscriptionCallback.hpp>
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/vehicle_command.h>
+#include <uORB/topics/vehicle_command_ack.h>
 #include <uORB/topics/vehicle_control_mode.h>
 #include <uORB/topics/vehicle_attitude.h>
 #include <uORB/topics/vehicle_imu_status.h>
@@ -83,6 +84,8 @@ uORB::Publication<offboard_control_mode_s> _offboard_control_mode_pub{ORB_ID(off
     void build_prediction_window();
     void check_window_validity();
     bool takeoff_window_has_time_remaining(hrt_abstime now) const;
+    void update_takeoff_command(hrt_abstime now);
+    void report_progress(hrt_abstime now);
     // --- Constants and Memory Buffers ---
     static constexpr size_t FFT_SIZE = 5000;
     size_t _step_counter{FFT_SIZE};
@@ -124,8 +127,15 @@ uORB::Publication<offboard_control_mode_s> _offboard_control_mode_pub{ORB_ID(off
     bool _was_window_valid{false};
     int _valid_window_start_idx{-1};
     bool _takeoff_triggered{false};       // trigger for takeoff
-    bool _takeoff_completed{false};       // STOP la FFT d after takeoff
+    bool _takeoff_completed{false};       // AUTO TAKEOFF nav state confirmed; stop prediction
     bool _marine_prev{false};             //  reset
+    bool _takeoff_command_sent{false};
+    bool _takeoff_acknowledged{false};
+    bool _max_cycles_reported{false};
+    hrt_abstime _takeoff_command_timestamp{0};
+    hrt_abstime _last_progress_print{0};
+    hrt_abstime _last_countdown_print{0};
+    hrt_abstime _last_arm_request{0};
     hrt_abstime _last_sample_time{0};
     hrt_abstime _prediction_start_time{0};
     hrt_abstime _takeoff_window_end_time{0};
@@ -154,6 +164,7 @@ uORB::Publication<offboard_control_mode_s> _offboard_control_mode_pub{ORB_ID(off
      uORB::Publication<marine_window_s>     _marine_window_pub{ORB_ID(marine_window)};
 
     uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
+    uORB::Subscription _vehicle_command_ack_sub{ORB_ID(vehicle_command_ack)};
     uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
     uORB::Subscription _vehicle_imu_status_sub{ORB_ID(vehicle_imu_status)};
     uORB::Subscription _marine_wave_sub{ORB_ID(marine_wave)};

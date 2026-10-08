@@ -18,7 +18,7 @@ def main():
     takeoff = (ROOT / "src/modules/marine_takeoff/MarineTakeoff.cpp").read_text()
     ff = navigation.split("else if (vehicle_control_mode.flag_control_prisma_marine_manual_ff_enabled) {", 1)[1].split("// UNCOMMENT", 1)[0]
     ts = navigation.split("else if (vehicle_control_mode.flag_control_prisma_marine_manual_ts_enabled) {", 1)[1].split("// UNCOMMENT", 1)[0]
-    gate = takeoff.split("    _vehicle_control_mode_sub.update(&_vehicle_control_mode);", 1)[1].split("    _marine_prev = true;", 1)[0] + "    _marine_prev = true;"
+    gate = takeoff.split("    _vehicle_control_mode_sub.update(&_vehicle_control_mode);", 1)[1].split("    if (!_marine_prev) {", 1)[0] + "    _marine_prev = true;"
     reset = takeoff.split("void MarineTakeoff::reset_module()", 1)[1].split("void MarineTakeoff::SendChunks()", 1)[0]
     sources = re.search(r"const float \* sources\[\].*?;", takeoff)[0]
     targets = re.search(r"float\* targets\[\].*?;", takeoff)[0]
@@ -50,6 +50,8 @@ struct MarineTakeoff {
     bool _is_sending_results = false, _was_window_valid = false, _is_window_duration_valid = false;
     int _total_samples = 0, _cycle_count = 0, _fft_idx = 0, _current_chunk_idx = 0, _valid_window_start_idx = -1;
     size_t _step_counter = FFT_SIZE;
+    bool _takeoff_command_sent = false, _takeoff_acknowledged = false, _max_cycles_reported = false;
+    uint64_t _takeoff_command_timestamp = 0, _last_progress_print = 0, _last_countdown_print = 0, _last_arm_request = 0;
     uint64_t _last_sample_time = 0, _prediction_start_time = 0, _takeoff_window_end_time = 0;
     uint64_t _target_takeoff_time = 0, _snapshot_timestamp = 0, _current_snapshot_time = 0;
     float _buf_az[FFT_SIZE]{}, _buf_roll[FFT_SIZE]{}, _buf_pitch[FFT_SIZE]{}, _raw_wave_buf[FFT_SIZE]{};

@@ -41,6 +41,7 @@ public:
  struct {float value=1.f;float get() const{return value;}} _param_win_time;
  bool _is_window_duration_valid=false,_was_window_valid=false,_takeoff_triggered=false,_takeoff_completed=false;
  int _valid_window_start_idx=-1;
+ hrt_abstime _last_countdown_print=0;
  hrt_abstime _last_sample_time=0,_prediction_start_time=0,_target_takeoff_time=0,_takeoff_window_end_time=0;
  void check_window_validity();
  bool takeoff_window_has_time_remaining(hrt_abstime now) const;
@@ -54,7 +55,7 @@ public:
  void reset_window() {
   std::fill_n(_final_takeoff_window,FFT_SIZE,0.f);
   _prediction_start_time=100000000;
-  clock_now=99999000;
+  clock_now=99900000;
  }
  void good(int start,int count){std::fill_n(_final_takeoff_window+start,count,1.f);}
 };
@@ -72,22 +73,24 @@ int main(){
  m.check_window_validity();assert(!m._takeoff_triggered);
  // Exactly 1 s between first and last prediction does not satisfy >1 s.
  m.reset_window();m.good(0,251);m.check_window_validity();assert(!m._takeoff_triggered);
- m.reset_window();m.good(0,252);m.check_window_validity();
+ m.reset_window();m.good(0,256);m.check_window_validity();assert(!m._takeoff_triggered);
+ m.good(256,1);m.check_window_validity();
  assert(m._takeoff_triggered && m._target_takeoff_time==100000000);
- assert(m._takeoff_window_end_time==101004000);
+ assert(m._takeoff_window_end_time==101024000);
  assert(m.takeoff_window_has_time_remaining(100000000));
- assert(!m.takeoff_window_has_time_remaining(100004000));
+ assert(m.takeoff_window_has_time_remaining(100019000));
+ assert(!m.takeoff_window_has_time_remaining(100024000));
  assert(!m.takeoff_window_has_time_remaining(102000000));
  // Non-grid minimum must be exceeded rather than rounded down.
  m.reset_window();m._param_win_time.value=1.001f;m.good(0,251);m.check_window_validity();assert(!m._takeoff_triggered);
- m.good(251,1);m.check_window_validity();assert(m._takeoff_triggered);
+ m.good(251,7);m.check_window_validity();assert(m._takeoff_triggered);
  m._param_win_time.value=1.f;
  // An earlier short run must not merge with the next valid run.
- m.reset_window();m.good(0,251);m.good(300,252);m.check_window_validity();
+ m.reset_window();m.good(0,251);m.good(300,258);m.check_window_validity();
  assert(m._valid_window_start_idx==300 && m._target_takeoff_time==101200000);
  // Runtime latency changes remaining validity, never shifts the prediction timeline.
  m.reset_window();m.good(0,1000);clock_now=100100000;m.check_window_validity();
- assert(m._valid_window_start_idx==26 && m._target_takeoff_time==100104000);
+ assert(m._valid_window_start_idx==30 && m._target_takeoff_time==100120000);
  m.reset_window();m.good(0,252);clock_now=100500000;m.check_window_validity();assert(!m._takeoff_triggered);
  // Stale or entirely expired data cannot schedule a command.
  m.reset_window();m.good(0,5000);clock_now=130000000;m.check_window_validity();assert(!m._takeoff_triggered);
