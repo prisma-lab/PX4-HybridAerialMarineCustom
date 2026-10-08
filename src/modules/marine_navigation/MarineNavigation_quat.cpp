@@ -227,9 +227,9 @@ void MarineNavigation::Run()
 		else if (steering > 0.01f)
 		{
 			control_input(0) = thrust;
-			control_input(1) = -(thrust +1)*steering +thrust;
+			control_input(1) = thrust * (1.0f - 2.0f * steering);
 		} else {
-			control_input(0) = (thrust +1)*steering +thrust;
+			control_input(0) = thrust * (1.0f + 2.0f * steering);
 			control_input(1) = thrust;
 		}
 

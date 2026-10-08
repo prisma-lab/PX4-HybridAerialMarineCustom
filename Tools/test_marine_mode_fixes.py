@@ -17,6 +17,7 @@ def main():
     navigation = (ROOT / "src/modules/marine_navigation/MarineNavigation_quat.cpp").read_text()
     takeoff = (ROOT / "src/modules/marine_takeoff/MarineTakeoff.cpp").read_text()
     ff = navigation.split("else if (vehicle_control_mode.flag_control_prisma_marine_manual_ff_enabled) {", 1)[1].split("// UNCOMMENT", 1)[0]
+    ts = navigation.split("else if (vehicle_control_mode.flag_control_prisma_marine_manual_ts_enabled) {", 1)[1].split("// UNCOMMENT", 1)[0]
     gate = takeoff.split("    _vehicle_control_mode_sub.update(&_vehicle_control_mode);", 1)[1].split("    _marine_prev = true;", 1)[0] + "    _marine_prev = true;"
     reset = takeoff.split("void MarineTakeoff::reset_module()", 1)[1].split("void MarineTakeoff::SendChunks()", 1)[0]
     sources = re.search(r"const float \* sources\[\].*?;", takeoff)[0]
@@ -38,8 +39,9 @@ struct Vector2f {
     Vector2f(float left, float right): values{left,right} {}
     float &operator()(int index) { return values[index]; }
 };
-struct Input { float throttle, pitch; };
+struct Input { float throttle, pitch; float roll = 0; };
 void ff(Input rc_input, Vector2f &control_input) { FF_CODE }
+void ts(Input rc_input, Vector2f &control_input) { __TS_FRAGMENT__ }
 struct MarineTakeoff {
     static constexpr int FFT_SIZE = FFT_SIZE_VALUE;
     struct { bool flag_control_marine_takeoff_enabled = false; } _vehicle_control_mode;
@@ -61,6 +63,21 @@ struct MarineTakeoff {
 };
 void MarineTakeoff::reset_module() RESET_CODE
 int main() {
+    unsigned ts_cases = 0;
+    for (float throttle : {-1.f, -.5f, -.09f, -.05f, 0.f, .05f, .09f, .5f, 1.f}) {
+        for (float steering : {-1.f, -.5f, -.09f, -.05f, 0.f, .05f, .09f, .5f, 1.f}) {
+            Vector2f result(.7f, -.7f);
+            ts({throttle,0,steering}, result);
+            const float t = std::fabs(throttle) < .09f ? 0.f : throttle;
+            const float s = std::fabs(steering) < .09f ? 0.f : steering;
+            const float left = s >= 0 ? t : t * (1 + 2*s);
+            const float right = s <= 0 ? t : t * (1 - 2*s);
+            assert(std::fabs(result(0) - left) < 1e-6f);
+            assert(std::fabs(result(1) - right) < 1e-6f);
+            ++ts_cases;
+        }
+    }
+    std::printf("PASS: %u TS equation cases including reverse, zero throttle, full steering and deadband boundaries.\n", ts_cases);
     unsigned cases = 0;
     for (float left : {-.8f, -.05f, 0.f, .05f, .5f, .8f}) {
         for (float right : {-.8f, -.05f, 0.f, .05f, .5f, .8f}) {
@@ -114,7 +131,7 @@ int main() {
     std::printf("PASS: %u FF axis cases, centered-pitch updates, roll/pitch mapping, acquisition exit, pending cancellation and re-entry.\n",cases);
 }
 '''
-    for key, value in {"FF_CODE": ff, "GATE_CODE": gate, "RESET_CODE": reset,
+    for key, value in {"FF_CODE": ff, "__TS_FRAGMENT__": ts, "GATE_CODE": gate, "RESET_CODE": reset,
                        "SOURCES_CODE": sources, "TARGETS_CODE": targets,
                        "BUFFER_CODE": buffer_call, "FFT_SIZE_VALUE": size}.items():
         code = code.replace(key, value)

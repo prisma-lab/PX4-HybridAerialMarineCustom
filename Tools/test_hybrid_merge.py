@@ -41,7 +41,7 @@ def main():
     for path in sorted(protected):
         expected = subprocess.check_output(["git", "show", f"{BASE}:{path}"], cwd=ROOT)
         if path == "src/modules/marine_navigation/MarineNavigation_quat.cpp":
-            # Explicitly authorized FF fix; all other original code stays identical.
+            # Explicitly authorized FF and TS fixes; other original code stays identical.
             expected = expected.replace(
                 b"\t\tif(fabs(rc_input.throttle) < 0.09f) control_input(0) = 0.0f;\n"
                 b"\t\tif(fabs(rc_input.pitch) < 0.09f) control_input(1) = 0.0f;\n"
@@ -49,9 +49,16 @@ def main():
                 b"\t\tcontrol_input(0) = fabsf(rc_input.throttle) < 0.09f ? 0.0f : rc_input.throttle;\n"
                 b"\t\tcontrol_input(1) = fabsf(rc_input.pitch) < 0.09f ? 0.0f : rc_input.pitch;",
             )
+            expected = expected.replace(
+                b"control_input(1) = -(thrust +1)*steering +thrust;",
+                b"control_input(1) = thrust * (1.0f - 2.0f * steering);",
+            ).replace(
+                b"control_input(0) = (thrust +1)*steering +thrust;",
+                b"control_input(0) = thrust * (1.0f + 2.0f * steering);",
+            )
         if (ROOT / path).read_bytes() != expected:
             raise AssertionError(f"Original implementation changed: {path}")
-    print(f"PASS: {len(protected)} original files preserved, allowing only the authorized two-axis FF fix.", flush=True)
+    print(f"PASS: {len(protected)} original files preserved, allowing only the authorized FF and TS fixes.", flush=True)
 
     commands = json.loads((ROOT / "build/px4_sitl_default/compile_commands.json").read_text())
     command = next(item for item in commands if item["file"].endswith("ModeUtil/control_mode.cpp"))
