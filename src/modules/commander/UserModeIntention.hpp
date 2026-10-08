@@ -34,6 +34,8 @@
 #pragma once
 
 #include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/vehicle_land_detected.h>
+#include <uORB/Subscription.hpp>
 #include "HealthAndArmingChecks/HealthAndArmingChecks.hpp"
 #include <px4_platform_common/module_params.h>
 
@@ -68,7 +70,7 @@ public:
 	 * @param user_intended_nav_state new mode
 	 * @param source calling reason
 	 * @param allow_fallback allow to fallback to a lower mode if current mode cannot run
-	 * @param force always set if true
+	 * @param force bypass health checks; marine admission restrictions still apply
 	 * @return true if successfully set (also if unchanged)
 	 */
 	bool change(uint8_t user_intended_nav_state, ModeChangeSource source = ModeChangeSource::User,
@@ -91,6 +93,7 @@ public:
 private:
 	bool isArmed() const { return _vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED; }
 
+	uORB::Subscription _land_detected_sub{ORB_ID(vehicle_land_detected)};
 	const vehicle_status_s &_vehicle_status;
 	const HealthAndArmingChecks &_health_and_arming_checks;
 	ModeChangeHandler *const _handler{nullptr};

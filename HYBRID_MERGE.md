@@ -65,3 +65,18 @@ Gazebo, scambio DDS con ROS, decollo attivo e hardware non sono stati verificati
 - Marine Takeoff scrive accelerazione, roll e pitch nei rispettivi buffer. In precedenza il roll finiva nel buffer della ground truth, il pitch nel buffer del roll e il buffer del pitch non veniva alimentato.
 - Uscendo da Marine Takeoff viene azzerata anche un'acquisizione incompleta, senza attendere che il decollo sia già programmato. Sono cancellati deadline, finestre, campioni e stato ZOH; il contatore FFT è un membro dell'istanza che viene reinizializzato. Il modulo termina il ciclo subito quando la modalità è inattiva e usa una sola lettura dei flag per ciclo.
 - Il test `Tools/test_marine_mode_fixes.py` esegue i frammenti di produzione con l'implementazione ZOH reale: 36 combinazioni degli assi FF, aggiornamenti con pitch centrato, associazione dei buffer, uscita durante acquisizione, cancellazione di un decollo pendente e rientro nella modalità.
+
+### Marine mode admission
+
+Marine Manual, Marine Manual TS, Marine Manual FF and Marine Takeoff share
+one admission rule in `UserModeIntention`: entry from any other mode requires
+`vehicle_land_detected.landed` and a disarmed vehicle. Missing landing data
+rejects entry. Transitions within this group have no landing/disarming
+constraint; ordinary health and failsafe checks remain active. Leaving this
+group does not impose a new landing/disarming constraint.
+
+This intentionally replaces the previous `maybe_landed` test and removes
+the Auto Marine source exemption. CLI, MAVLink, RC and mode-executor requests
+use the same rule, including forced requests and replacement modes.
+
+Regression: `python3 Tools/test_marine_mode_admission.py`.

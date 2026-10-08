@@ -33,6 +33,7 @@
 
 
 #include "UserModeIntention.hpp"
+#include "MarineModeAdmission.hpp"
 
 UserModeIntention::UserModeIntention(ModuleParams *parent, const vehicle_status_s &vehicle_status,
 				     const HealthAndArmingChecks &health_and_arming_checks, ModeChangeHandler *handler)
@@ -50,6 +51,16 @@ bool UserModeIntention::change(uint8_t user_intended_nav_state, ModeChangeSource
 	if (_handler) {
 		// If a replacement mode is selected, select the internal one instead. The replacement will be selected after.
 		user_intended_nav_state = _handler->getReplacedModeIfAny(user_intended_nav_state);
+	}
+
+	// Apply the same admission rule to every command path, including forced requests.
+	if (isManualMarineMode(user_intended_nav_state) && !isManualMarineMode(_vehicle_status.nav_state)) {
+		vehicle_land_detected_s land_detected{};
+		const bool landed = _land_detected_sub.copy(&land_detected) && land_detected.landed;
+
+		if (!canEnterManualMarineMode(_vehicle_status.nav_state, user_intended_nav_state, isArmed(), landed)) {
+			return false;
+		}
 	}
 
 	// Always allow mode change while disarmed
